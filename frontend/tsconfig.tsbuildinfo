@@ -1,0 +1,1 @@
+{"root":["./src/main.tsx","./src/vite-env.d.ts","./src/modules/offers/addofferpage.tsx","./src/modules/offers/dashboardpage.tsx","./src/modules/offers/offerdetailpage.tsx","./src/modules/offers/offerslistpage.tsx","./src/modules/offers/scrapepage.tsx","./src/shared/layout.tsx","./src/shared/api.ts"],"version":"5.7.3"}

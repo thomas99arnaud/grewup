@@ -1,0 +1,15 @@
+[
+  {
+    "id": "abc-123",
+    "text": "Software Engineer",
+    "hostedUrl": "https://jobs.lever.co/acme/abc-123",
+    "company": "Acme Corp",
+    "descriptionPlain": "Build great products with Python and TypeScript.",
+    "categories": {
+      "location": "Remote - France",
+      "commitment": "Full-time"
+    },
+    "workplaceType": "remote",
+    "createdAt": 1704067200000
+  }
+]

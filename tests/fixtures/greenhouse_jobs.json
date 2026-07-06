@@ -1,0 +1,13 @@
+{
+  "jobs": [
+    {
+      "id": 12345,
+      "title": "Senior Backend Engineer",
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/12345",
+      "location": {"name": "Paris, France (Remote)"},
+      "content": "<p>We are looking for a Python developer.</p>",
+      "departments": [{"name": "Engineering"}],
+      "offices": []
+    }
+  ]
+}

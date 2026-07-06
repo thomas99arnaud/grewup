@@ -236,6 +236,35 @@ h2 {
   font-size: 0.9rem;
 }
 
+
+.scrape-progress {
+  margin: 0 0 1rem;
+}
+
+.scrape-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.scrape-progress-track {
+  height: 8px;
+  background: var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.scrape-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), #60a5fa);
+  border-radius: 999px;
+  transition: width 0.35s ease;
+}
+
 .source-pills {
   display: flex;
   flex-wrap: wrap;

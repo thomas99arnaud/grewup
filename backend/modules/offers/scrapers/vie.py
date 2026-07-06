@@ -9,6 +9,7 @@ from backend.modules.offers.scrapers.base import OfferDetail, RawOffer, ScrapePa
 
 API_BASE = "https://civiweb-api-prd.azurewebsites.net/api/Offers"
 SITE_BASE = "https://mon-vie-via.businessfrance.fr"
+API_PAGE_SIZE = 6
 VIE_URL_RE = re.compile(
     r"mon-vie-via\.businessfrance\.fr/offres/(\d+)",
     re.I,
@@ -75,14 +76,24 @@ class VieScraper(ScraperAdapter):
             },
         )
 
-    def _build_search_payload(self, params: ScrapeParams, page: int, page_size: int) -> dict[str, Any]:
+    def _build_search_payload(self, params: ScrapeParams, skip: int, limit: int) -> dict[str, Any]:
+        query = params.keywords.strip() if params.keywords else None
         return {
-            "query": params.keywords or "",
+            "limit": limit,
+            "skip": skip,
+            "query": query,
             "specializationsIds": params.specialization_ids or ["24"],
             "teletravail": params.teletravail or ["0"],
             "porteEnv": params.porte_env or ["0"],
-            "page": page,
-            "pageSize": page_size,
+            "activitySectorId": [],
+            "companiesSizes": [],
+            "countriesIds": [],
+            "entreprisesIds": [0],
+            "geographicZones": [],
+            "missionStartDate": None,
+            "missionsDurations": [],
+            "missionsTypesIds": [],
+            "studiesLevelId": [],
         }
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=8))
@@ -101,26 +112,34 @@ class VieScraper(ScraperAdapter):
 
     async def search(self, params: ScrapeParams) -> list[RawOffer]:
         results: list[RawOffer] = []
-        page = 1
-        page_size = min(50, max(1, params.max_results_per_source))
-        max_pages = max(1, (params.max_results_per_source + page_size - 1) // page_size)
+        seen_ids: set[str] = set()
+        skip = 0
+        limit = API_PAGE_SIZE
+        total_count: int | None = None
 
-        while page <= max_pages and len(results) < params.max_results_per_source:
-            data = await self._search_page(self._build_search_payload(params, page, page_size))
+        while len(results) < params.max_results_per_source:
+            data = await self._search_page(self._build_search_payload(params, skip, limit))
+            if total_count is None and data.get("count") is not None:
+                total_count = int(data["count"])
+
             items = data.get("result") or []
             if not items:
                 break
 
             for item in items:
                 raw = self._item_to_raw(item)
-                if raw:
-                    results.append(raw)
+                if not raw or raw.external_id in seen_ids:
+                    continue
+                seen_ids.add(raw.external_id)
+                results.append(raw)
                 if len(results) >= params.max_results_per_source:
                     break
 
-            if len(items) < page_size:
+            if total_count is not None and skip + limit >= total_count:
                 break
-            page += 1
+            if len(items) < limit:
+                break
+            skip += limit
 
         return results
 

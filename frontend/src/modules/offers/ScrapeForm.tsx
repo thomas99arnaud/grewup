@@ -1,46 +1,98 @@
 import { FormEvent, useEffect, useState } from "react";
-import { api, ScrapeParams } from "../../shared/api";
+import { api, ScrapeParams, ScrapeRunStatus } from "../../shared/api";
 
 interface ScrapeFormProps {
   onComplete?: () => void;
   compact?: boolean;
 }
 
+const STATUS_LABELS: Record<ScrapeRunStatus, string> = {
+  pending: "Préparation de la recherche…",
+  running: "Récupération des offres VIE…",
+  done: "Terminé",
+  failed: "Échec",
+};
+
 export function ScrapeForm({ onComplete, compact = false }: ScrapeFormProps) {
   const [keywords, setKeywords] = useState("");
   const [specializationId, setSpecializationId] = useState("24");
   const [maxResults, setMaxResults] = useState(30);
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [runStatus, setRunStatus] = useState<ScrapeRunStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!loading) return;
+
+    const tick = setInterval(() => {
+      setProgress((current) => {
+        if (current >= 92) return current;
+        const step = current < 40 ? 3 : current < 70 ? 2 : 1;
+        return Math.min(92, current + step);
+      });
+    }, 350);
+
+    return () => clearInterval(tick);
+  }, [loading]);
+
+  useEffect(() => {
     if (!activeRunId) return;
-    const interval = setInterval(async () => {
+
+    const poll = async () => {
       try {
         const run = await api.getScrapeRun(activeRunId);
+        setRunStatus(run.status);
+
         if (run.status === "done") {
-          setSuccess(`${run.offers_new} nouvelle(s) offre(s) ajoutée(s)`);
+          setProgress(100);
+          const { offers_found, offers_new, offers_duplicates } = run;
+          if (offers_new > 0) {
+            setSuccess(
+              `${offers_new} nouvelle(s) offre(s) ajoutée(s) sur ${offers_found} trouvée(s)`
+            );
+          } else if (offers_found > 0) {
+            setSuccess(
+              `${offers_found} offre(s) trouvée(s), déjà toutes en base (${offers_duplicates} doublon(s))`
+            );
+          } else {
+            setSuccess("Aucune offre trouvée pour cette recherche");
+          }
           setActiveRunId(null);
           setLoading(false);
+          setRunStatus(null);
+          window.setTimeout(() => setProgress(0), 800);
           onComplete?.();
         } else if (run.status === "failed") {
+          setProgress(0);
           setError(run.error_message || "Échec du scraping");
           setActiveRunId(null);
           setLoading(false);
+          setRunStatus(null);
+        } else if (run.status === "running" && run.offers_found > 0) {
+          const ratio = Math.min(95, Math.round((run.offers_found / maxResults) * 100));
+          setProgress((current) => Math.max(current, ratio));
         }
       } catch {
+        setProgress(0);
         setActiveRunId(null);
         setLoading(false);
+        setRunStatus(null);
       }
-    }, 2000);
+    };
+
+    poll();
+    const interval = setInterval(poll, 1500);
     return () => clearInterval(interval);
-  }, [activeRunId, onComplete]);
+  }, [activeRunId, maxResults, onComplete]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setProgress(8);
+    setRunStatus("pending");
     setError(null);
     setSuccess(null);
 
@@ -56,9 +108,13 @@ export function ScrapeForm({ onComplete, compact = false }: ScrapeFormProps) {
     try {
       const run = await api.createScrapeRun(params);
       setActiveRunId(run.id);
+      setRunStatus(run.status);
+      setProgress(18);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur");
       setLoading(false);
+      setProgress(0);
+      setRunStatus(null);
     }
   };
 
@@ -75,6 +131,7 @@ export function ScrapeForm({ onComplete, compact = false }: ScrapeFormProps) {
             value={keywords}
             onChange={(e) => setKeywords(e.target.value)}
             placeholder="Optionnel"
+            disabled={loading}
           />
         </label>
         {!compact && (
@@ -84,6 +141,7 @@ export function ScrapeForm({ onComplete, compact = false }: ScrapeFormProps) {
               value={specializationId}
               onChange={(e) => setSpecializationId(e.target.value)}
               placeholder="24"
+              disabled={loading}
             />
           </label>
         )}
@@ -95,9 +153,22 @@ export function ScrapeForm({ onComplete, compact = false }: ScrapeFormProps) {
             max={100}
             value={maxResults}
             onChange={(e) => setMaxResults(Number(e.target.value))}
+            disabled={loading}
           />
         </label>
       </div>
+
+      {loading && (
+        <div className="scrape-progress" role="status" aria-live="polite">
+          <div className="scrape-progress-header">
+            <span>{runStatus ? STATUS_LABELS[runStatus] : "Recherche en cours…"}</span>
+            <span>{Math.round(progress)}%</span>
+          </div>
+          <div className="scrape-progress-track">
+            <div className="scrape-progress-bar" style={{ width: `${progress}%` }} />
+          </div>
+        </div>
+      )}
 
       {error && <p className="msg error">{error}</p>}
       {success && <p className="msg success">{success}</p>}

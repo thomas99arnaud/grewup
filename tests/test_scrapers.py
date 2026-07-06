@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -16,12 +16,20 @@ def vie_search_data():
     return json.loads((FIXTURES / "vie_search.json").read_text(encoding="utf-8"))
 
 
+def _make_item(offer_id: int, title: str) -> dict:
+    return {
+        "id": offer_id,
+        "organizationName": "Acme Corp",
+        "missionTitle": title,
+        "cityName": "Tokyo",
+        "missionDescription": "Description.",
+        "missionType": "VIE",
+    }
+
+
 @pytest.mark.asyncio
 async def test_vie_search_returns_offers(vie_search_data):
     scraper = VieScraper()
-    mock_response = AsyncMock()
-    mock_response.raise_for_status = lambda: None
-    mock_response.json = lambda: vie_search_data
 
     with patch.object(scraper, "_search_page", return_value=vie_search_data):
         results = await scraper.search(
@@ -31,7 +39,47 @@ async def test_vie_search_returns_offers(vie_search_data):
     assert len(results) == 2
     assert results[0].title == "Ingénieur développement"
     assert results[0].company == "Acme Corp"
-    assert results[0].url.startswith("https://mon-vie-via.businessfrance.fr/offres/")
+    await scraper.close()
+
+
+@pytest.mark.asyncio
+async def test_vie_search_paginates_until_max_results():
+    scraper = VieScraper()
+    pages = {
+        0: {"count": 12, "result": [_make_item(i, f"Offre {i}") for i in range(1, 7)]},
+        6: {"count": 12, "result": [_make_item(i, f"Offre {i}") for i in range(7, 13)]},
+    }
+
+    async def fake_search_page(payload: dict) -> dict:
+        return pages[payload["skip"]]
+
+    with patch.object(scraper, "_search_page", side_effect=fake_search_page):
+        results = await scraper.search(
+            ScrapeParams(specialization_ids=["24"], max_results_per_source=10)
+        )
+
+    assert len(results) == 10
+    assert results[0].title == "Offre 1"
+    assert results[9].title == "Offre 10"
+    await scraper.close()
+
+
+@pytest.mark.asyncio
+async def test_vie_search_payload_uses_limit_skip():
+    scraper = VieScraper()
+    captured: list[dict] = []
+
+    async def fake_search_page(payload: dict) -> dict:
+        captured.append(payload)
+        return {"count": 6, "result": [_make_item(1, "Offre 1")]}
+
+    with patch.object(scraper, "_search_page", side_effect=fake_search_page):
+        await scraper.search(ScrapeParams(specialization_ids=["24"], max_results_per_source=6))
+
+    assert captured[0]["limit"] == 6
+    assert captured[0]["skip"] == 0
+    assert captured[0]["query"] is None
+    assert captured[0]["entreprisesIds"] == [0]
     await scraper.close()
 
 

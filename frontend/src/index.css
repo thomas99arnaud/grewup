@@ -185,7 +185,10 @@ h2 {
 }
 
 /* Forms */
-.scrape-form label {
+.scrape-form label,
+.profile-section > label,
+.profile-section .form-row > label,
+.profile-add-form > label {
   display: block;
   margin-bottom: 1rem;
   font-size: 0.85rem;
@@ -195,6 +198,9 @@ h2 {
 
 .scrape-form input,
 .scrape-form textarea,
+.profile-section input:not([type="checkbox"]),
+.profile-section textarea,
+.profile-add-form textarea,
 .search-input,
 .toolbar select {
   display: block;
@@ -208,10 +214,13 @@ h2 {
   background: var(--surface);
   color: var(--text);
   transition: border-color 0.15s;
+  box-sizing: border-box;
 }
 
 .scrape-form input:focus,
 .scrape-form textarea:focus,
+.profile-section input:not([type="checkbox"]):focus,
+.profile-section textarea:focus,
 .search-input:focus,
 .toolbar select:focus {
   outline: none;
@@ -725,4 +734,298 @@ h2 {
   margin-top: 1.5rem;
   font-size: 0.9rem;
   color: var(--muted);
+}
+
+
+/* Profile */
+.profile-page .page-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.profile-stats {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.profile-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.profile-tab {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.profile-tab.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.profile-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.profile-section h2 {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+}
+
+.profile-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.profile-list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.profile-list-item.column {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.profile-list-item:last-child {
+  border-bottom: none;
+}
+
+.profile-exp-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.profile-exp-desc {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+  color: var(--text);
+  white-space: pre-wrap;
+}
+
+.tag.level {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.col-muted.small {
+  font-size: 0.85rem;
+  margin: 0.25rem 0 0;
+}
+
+.scrape-form select,
+.profile-section select {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+  background: var(--surface);
+}
+
+.profile-section-title {
+  margin: 0 0 1rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.profile-page .profile-section {
+  margin-bottom: 1rem;
+}
+
+.profile-inline-form,
+.profile-add-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  align-items: flex-end;
+}
+
+.profile-inline-form input,
+.profile-inline-form select,
+.profile-add-form input,
+.profile-add-form textarea,
+.profile-add-form select {
+  flex: 1;
+  min-width: 140px;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+}
+
+.skill-group { margin-bottom: 1rem; }
+.skill-group-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.month-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.profile-section-hint {
+  margin: -0.5rem 0 1rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.profile-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.profile-stat strong {
+  font-size: 1.15rem;
+  color: var(--text);
+}
+
+.profile-optional {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.profile-optional summary {
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.profile-optional-hint {
+  margin: 0.5rem 0 0.75rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.skill-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.skill-chip {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  max-width: 100%;
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.skill-chip-technical {
+  border-color: #dbeafe;
+  background: var(--accent-soft);
+}
+
+.skill-chip-soft {
+  border-color: #d1fae5;
+  background: #ecfdf5;
+}
+
+.skill-chip-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.skill-chip-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.skill-chip-meta {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.skill-chip-desc {
+  margin: 0.25rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.skill-chip-remove {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0.1rem 0.25rem;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.skill-chip-remove:hover {
+  color: var(--danger, #dc2626);
+}
+
+@media (max-width: 700px) {
+  .profile-page .page-head {
+    flex-direction: column;
+  }
+
+  .profile-stats {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .profile-stat {
+    flex: 1;
+    min-width: 70px;
+  }
 }

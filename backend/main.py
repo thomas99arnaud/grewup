@@ -7,8 +7,10 @@ from backend.core.config import settings
 from backend.core.module import module_registry
 from backend.db.session import init_db
 from backend.modules.offers.router import OffersModule
+from backend.modules.profile.router import ProfileModule
 
 module_registry.register(OffersModule())
+module_registry.register(ProfileModule())
 
 
 @asynccontextmanager

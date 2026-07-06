@@ -6,6 +6,7 @@ import { HomePage } from "./modules/offers/HomePage";
 import { OffersListPage } from "./modules/offers/OffersListPage";
 import { OfferDetailPage } from "./modules/offers/OfferDetailPage";
 import { AddOfferPage } from "./modules/offers/AddOfferPage";
+import { ProfilePage } from "./modules/profile/ProfilePage";
 import "./index.css";
 
 createRoot(document.getElementById("root")!).render(
@@ -17,6 +18,7 @@ createRoot(document.getElementById("root")!).render(
           <Route path="offers" element={<OffersListPage />} />
           <Route path="offers/add" element={<AddOfferPage />} />
           <Route path="offers/:id" element={<OfferDetailPage />} />
+          <Route path="profile" element={<ProfilePage />} />
         </Route>
       </Routes>
     </BrowserRouter>

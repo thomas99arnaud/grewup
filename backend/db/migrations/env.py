@@ -6,6 +6,7 @@ from sqlalchemy import engine_from_config, pool
 from backend.core.config import settings
 from backend.db.base import Base
 from backend.modules.offers.models import Offer, ScrapeConfig, ScrapeRun  # noqa: F401
+from backend.modules.profile.models import CandidateProfile, Education, Experience, ProfileLanguage, Skill  # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url.replace("+aiosqlite", ""))

@@ -1,4 +1,6 @@
-import { Link, Outlet, useLocation } from "react-router-dom";
+from pathlib import Path
+
+LAYOUT = """import { Link, Outlet, useLocation } from "react-router-dom";
 
 const nav = [
   { to: "/", label: "Accueil" },
@@ -39,3 +41,7 @@ export function Layout() {
     </div>
   );
 }
+"""
+
+Path("frontend/src/shared/Layout.tsx").write_text(LAYOUT, encoding="utf-8", newline="\n")
+print("Layout.tsx fixed")

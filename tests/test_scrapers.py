@@ -5,81 +5,58 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from backend.modules.offers.scrapers.base import ScrapeParams
-from backend.modules.offers.scrapers.greenhouse import GreenhouseScraper
-from backend.modules.offers.scrapers.lever import LeverScraper
 from backend.modules.offers.scrapers.registry import ScraperRegistry
+from backend.modules.offers.scrapers.vie import VieScraper
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
 @pytest.fixture
-def greenhouse_data():
-    return json.loads((FIXTURES / "greenhouse_jobs.json").read_text())
-
-
-@pytest.fixture
-def lever_data():
-    return json.loads((FIXTURES / "lever_postings.json").read_text())
+def vie_search_data():
+    return json.loads((FIXTURES / "vie_search.json").read_text(encoding="utf-8"))
 
 
 @pytest.mark.asyncio
-async def test_greenhouse_search_filters_by_keyword(greenhouse_data):
-    scraper = GreenhouseScraper()
+async def test_vie_search_returns_offers(vie_search_data):
+    scraper = VieScraper()
     mock_response = AsyncMock()
-    mock_response.raise_for_status = AsyncMock()
-    mock_response.json = lambda: greenhouse_data
+    mock_response.raise_for_status = lambda: None
+    mock_response.json = lambda: vie_search_data
 
-    with patch.object(scraper, "_fetch_board", return_value=greenhouse_data["jobs"]):
+    with patch.object(scraper, "_search_page", return_value=vie_search_data):
         results = await scraper.search(
-            ScrapeParams(keywords="Python", greenhouse_slugs=["acme"])
+            ScrapeParams(keywords="", specialization_ids=["24"], max_results_per_source=5)
         )
-    assert len(results) == 1
-    assert results[0].title == "Senior Backend Engineer"
-    assert results[0].company == "Acme"
-    await scraper.close()
 
-
-@pytest.mark.asyncio
-async def test_greenhouse_search_excludes_non_matching(greenhouse_data):
-    scraper = GreenhouseScraper()
-    with patch.object(scraper, "_fetch_board", return_value=greenhouse_data["jobs"]):
-        results = await scraper.search(
-            ScrapeParams(keywords="Java", greenhouse_slugs=["acme"])
-        )
-    assert len(results) == 0
-    await scraper.close()
-
-
-@pytest.mark.asyncio
-async def test_lever_search(lever_data):
-    scraper = LeverScraper()
-    with patch.object(scraper, "_fetch_postings", return_value=lever_data):
-        results = await scraper.search(
-            ScrapeParams(keywords="Python", lever_slugs=["acme"])
-        )
-    assert len(results) == 1
+    assert len(results) == 2
+    assert results[0].title == "Ingénieur développement"
     assert results[0].company == "Acme Corp"
+    assert results[0].url.startswith("https://mon-vie-via.businessfrance.fr/offres/")
     await scraper.close()
 
 
-def test_registry_detects_greenhouse_url():
+@pytest.mark.asyncio
+async def test_vie_fetch_detail(vie_search_data):
+    scraper = VieScraper()
+    item = vie_search_data["result"][0]
+
+    with patch.object(scraper, "_fetch_details", return_value=item):
+        detail = await scraper.fetch_detail("https://mon-vie-via.businessfrance.fr/offres/12345")
+
+    assert detail.external_id == "12345"
+    assert detail.title == "Ingénieur développement"
+    await scraper.close()
+
+
+def test_registry_detects_vie_url():
     registry = ScraperRegistry()
-    scraper = registry.get_for_url("https://boards.greenhouse.io/stripe/jobs/123")
+    scraper = registry.get_for_url("https://mon-vie-via.businessfrance.fr/offres/999")
     assert scraper is not None
-    assert scraper.source.value == "greenhouse"
+    assert scraper.source.value == "vie"
 
 
-def test_registry_detects_lever_url():
+def test_registry_only_vie_scraper():
     registry = ScraperRegistry()
-    scraper = registry.get_for_url("https://jobs.lever.co/netflix/abc-123")
-    assert scraper is not None
-    assert scraper.source.value == "lever"
-
-
-def test_registry_detects_wttj_url():
-    registry = ScraperRegistry()
-    scraper = registry.get_for_url(
-        "https://www.welcometothejungle.com/fr/companies/foo/jobs/bar"
-    )
-    assert scraper is not None
-    assert scraper.source.value == "wttj"
+    scrapers = registry.all_scrapers()
+    assert len(scrapers) == 1
+    assert scrapers[0].source.value == "vie"

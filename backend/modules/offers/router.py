@@ -141,6 +141,9 @@ async def create_scrape_run(
         scrape_params = ScrapeParams(
             keywords=params.keywords,
             location=params.location,
+            specialization_ids=params.specialization_ids,
+            teletravail=params.teletravail,
+            porte_env=params.porte_env,
             greenhouse_slugs=params.greenhouse_slugs,
             lever_slugs=params.lever_slugs,
             since=params.since,

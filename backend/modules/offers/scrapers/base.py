@@ -10,6 +10,9 @@ from backend.modules.offers.models import OfferSource, RemoteType
 class ScrapeParams:
     keywords: str = ""
     location: str = ""
+    specialization_ids: list[str] = field(default_factory=lambda: ["24"])
+    teletravail: list[str] = field(default_factory=lambda: ["0"])
+    porte_env: list[str] = field(default_factory=lambda: ["0"])
     greenhouse_slugs: list[str] = field(default_factory=list)
     lever_slugs: list[str] = field(default_factory=list)
     since: datetime | None = None

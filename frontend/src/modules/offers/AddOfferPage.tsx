@@ -50,69 +50,68 @@ export function AddOfferPage() {
   };
 
   return (
-    <div>
-      <h2>Ajouter une offre</h2>
+    <div className="page">
+      <h1>Ajouter une offre</h1>
+
       <div className="tabs">
         <button className={tab === "url" ? "active" : ""} onClick={() => setTab("url")}>
           Par URL
         </button>
         <button className={tab === "manual" ? "active" : ""} onClick={() => setTab("manual")}>
-          Collage manuel
+          Saisie manuelle
         </button>
       </div>
 
-      {error && <p className="error">{error}</p>}
+      <div className="card">
+        {error && <p className="msg error">{error}</p>}
 
-      {tab === "url" ? (
-        <form onSubmit={handleUrl} className="form">
-          <label>
-            URL de l&apos;annonce
-            <input
-              type="url"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://..."
-              required
-            />
-          </label>
-          <p className="hint">
-            Détection auto : WTTJ, Indeed, Greenhouse, Lever. Autres sites : extraction générique.
-          </p>
-          <button type="submit" disabled={loading}>
-            {loading ? "Import..." : "Importer"}
-          </button>
-        </form>
-      ) : (
-        <form onSubmit={handleManual} className="form">
-          <label>
-            Titre *
-            <input value={title} onChange={(e) => setTitle(e.target.value)} required />
-          </label>
-          <label>
-            Entreprise *
-            <input value={company} onChange={(e) => setCompany(e.target.value)} required />
-          </label>
-          <label>
-            Lieu
-            <input value={location} onChange={(e) => setLocation(e.target.value)} />
-          </label>
-          <label>
-            URL (optionnel)
-            <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} />
-          </label>
-          <label>
-            Description
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={10}
-            />
-          </label>
-          <button type="submit" disabled={loading}>
-            {loading ? "Création..." : "Créer"}
-          </button>
-        </form>
-      )}
+        {tab === "url" ? (
+          <form onSubmit={handleUrl} className="scrape-form">
+            <label>
+              URL de l&apos;annonce
+              <input
+                type="url"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="https://..."
+                required
+              />
+            </label>
+            <p className="hint">WTTJ, Indeed, Greenhouse, Lever — ou extraction générique.</p>
+            <button type="submit" className="btn primary" disabled={loading}>
+              {loading ? "Import…" : "Importer"}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleManual} className="scrape-form">
+            <div className="form-row">
+              <label>
+                Titre *
+                <input value={title} onChange={(e) => setTitle(e.target.value)} required />
+              </label>
+              <label>
+                Entreprise *
+                <input value={company} onChange={(e) => setCompany(e.target.value)} required />
+              </label>
+            </div>
+            <label>
+              Lieu
+              <input value={location} onChange={(e) => setLocation(e.target.value)} />
+            </label>
+            <label>
+              URL (optionnel)
+              <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} />
+            </label>
+            <label>
+              Description
+              <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={8} />
+            </label>
+            <button type="submit" className="btn primary" disabled={loading}>
+              {loading ? "Création…" : "Créer"}
+            </button>
+          </form>
+        )}
+      </div>
     </div>
   );
 }

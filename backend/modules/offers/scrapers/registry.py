@@ -1,4 +1,3 @@
-import re
 from urllib.parse import urlparse
 
 import httpx
@@ -6,20 +5,12 @@ from bs4 import BeautifulSoup
 
 from backend.modules.offers.models import OfferSource
 from backend.modules.offers.scrapers.base import OfferDetail, RawOffer, ScraperAdapter
-from backend.modules.offers.scrapers.greenhouse import GreenhouseScraper
-from backend.modules.offers.scrapers.indeed import IndeedScraper
-from backend.modules.offers.scrapers.lever import LeverScraper
-from backend.modules.offers.scrapers.wttj import WttjScraper
+from backend.modules.offers.scrapers.vie import VieScraper
 
 
 class ScraperRegistry:
     def __init__(self) -> None:
-        self._scrapers: list[ScraperAdapter] = [
-            GreenhouseScraper(),
-            LeverScraper(),
-            WttjScraper(),
-            IndeedScraper(),
-        ]
+        self._scrapers: list[ScraperAdapter] = [VieScraper()]
         self._by_source = {s.source: s for s in self._scrapers}
 
     def get_by_source(self, source: OfferSource) -> ScraperAdapter | None:
@@ -59,7 +50,6 @@ class ScraperRegistry:
                 if main:
                     description = main.get_text("\n", strip=True)[:10000]
 
-            company = ""
             parsed = urlparse(url)
             company = parsed.netloc.replace("www.", "").split(".")[0].title()
 

@@ -1,25 +1,31 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
 
 const nav = [
-  { to: "/", label: "Dashboard" },
+  { to: "/", label: "Accueil" },
   { to: "/offers", label: "Offres" },
   { to: "/offers/add", label: "Ajouter" },
-  { to: "/scrape", label: "Scraping" },
 ];
 
 export function Layout() {
-  const location = useLocation();
+  const { pathname } = useLocation();
 
   return (
     <div className="app">
       <header className="header">
-        <h1>Grew</h1>
-        <nav>
+        <Link to="/" className="brand">
+          Grew
+        </Link>
+        <nav className="nav">
           {nav.map((item) => (
             <Link
               key={item.to}
               to={item.to}
-              className={location.pathname === item.to ? "active" : ""}
+              className={
+                pathname === item.to ||
+                (item.to !== "/" && pathname.startsWith(item.to))
+                  ? "active"
+                  : ""
+              }
             >
               {item.label}
             </Link>

@@ -1,4 +1,4 @@
-export type OfferSource = "wttj" | "indeed" | "greenhouse" | "lever" | "manual";
+export type OfferSource = "vie" | "manual";
 export type OfferStatus = "new" | "reviewed" | "shortlisted" | "archived";
 export type ScrapeRunStatus = "pending" | "running" | "done" | "failed";
 
@@ -36,10 +36,9 @@ export interface OfferListResponse {
 export interface ScrapeParams {
   sources: OfferSource[];
   keywords: string;
-  location: string;
-  greenhouse_slugs: string[];
-  lever_slugs: string[];
-  since?: string | null;
+  specialization_ids: string[];
+  teletravail: string[];
+  porte_env: string[];
   max_results_per_source: number;
 }
 

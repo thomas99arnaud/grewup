@@ -1,0 +1,26 @@
+{
+  "count": 2,
+  "result": [
+    {
+      "id": 12345,
+      "organizationName": "Acme Corp",
+      "missionTitle": "Ingénieur développement",
+      "cityName": "Tokyo",
+      "missionDescription": "Développement d'applications web.",
+      "organizationPresentation": "Leader mondial.",
+      "missionType": "VIE",
+      "missionDuration": 24,
+      "specialization": "Informatique",
+      "countryName": "Japon"
+    },
+    {
+      "id": 67890,
+      "organizationName": "Beta SA",
+      "missionTitle": "Chef de projet",
+      "cityName": "New York",
+      "missionDescription": "Gestion de projets IT.",
+      "missionType": "VIA",
+      "countryName": "États-Unis"
+    }
+  ]
+}

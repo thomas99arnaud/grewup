@@ -10,6 +10,7 @@ from backend.db.base import Base
 
 
 class OfferSource(str, enum.Enum):
+    VIE = "vie"
     WTTJ = "wttj"
     INDEED = "indeed"
     GREENHOUSE = "greenhouse"

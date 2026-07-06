@@ -1,14 +1,17 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field
 
 from backend.modules.offers.models import OfferSource, OfferStatus, RemoteType, ScrapeRunStatus
 
 
 class ScrapeParamsSchema(BaseModel):
-    sources: list[OfferSource] = Field(default_factory=lambda: [OfferSource.WTTJ])
+    sources: list[OfferSource] = Field(default_factory=lambda: [OfferSource.VIE])
     keywords: str = ""
+    specialization_ids: list[str] = Field(default_factory=lambda: ["24"])
+    teletravail: list[str] = Field(default_factory=lambda: ["0"])
+    porte_env: list[str] = Field(default_factory=lambda: ["0"])
     location: str = ""
     greenhouse_slugs: list[str] = Field(default_factory=list)
     lever_slugs: list[str] = Field(default_factory=list)

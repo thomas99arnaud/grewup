@@ -43,6 +43,9 @@ async def run_scrape_job(ctx: dict, run_id: str, params_dict: dict, sources: lis
     scrape_params = ScrapeParams(
         keywords=params_dict.get("keywords", ""),
         location=params_dict.get("location", ""),
+        specialization_ids=params_dict.get("specialization_ids", ["24"]),
+        teletravail=params_dict.get("teletravail", ["0"]),
+        porte_env=params_dict.get("porte_env", ["0"]),
         greenhouse_slugs=params_dict.get("greenhouse_slugs", []),
         lever_slugs=params_dict.get("lever_slugs", []),
         max_results_per_source=params_dict.get("max_results_per_source", 50),

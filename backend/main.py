@@ -8,9 +8,11 @@ from backend.core.module import module_registry
 from backend.db.session import init_db
 from backend.modules.offers.router import OffersModule
 from backend.modules.profile.router import ProfileModule
+from backend.modules.applications.router import ApplicationsModule
 
 module_registry.register(OffersModule())
 module_registry.register(ProfileModule())
+module_registry.register(ApplicationsModule())
 
 
 @asynccontextmanager

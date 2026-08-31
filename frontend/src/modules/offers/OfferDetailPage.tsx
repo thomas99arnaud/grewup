@@ -57,9 +57,22 @@ export function OfferDetailPage() {
             <span className={`tag status-${offer.status}`}>{offer.status}</span>
           </div>
         </div>
-        <a className="btn primary" href={offer.url} target="_blank" rel="noreferrer">
-          Ouvrir l&apos;annonce
-        </a>
+        <div>
+          <a className="btn primary" href={offer.url} target="_blank" rel="noreferrer">
+            Ouvrir l&apos;annonce
+          </a>
+          <Link
+            className="btn ghost"
+            to="/apply"
+            state={{
+              offerText: [offer.title, offer.company, offer.description_raw]
+                .filter(Boolean)
+                .join("\n\n"),
+            }}
+          >
+            CV / lettre
+          </Link>
+        </div>
       </div>
 
       <div className="detail-actions">

@@ -2,6 +2,7 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 
 const nav = [
   { to: "/", label: "Accueil" },
+  { to: "/apply", label: "CV / lettre" },
   { to: "/offers", label: "Offres" },
   { to: "/profile", label: "Répertoire" },
   { to: "/offers/add", label: "Ajouter" },

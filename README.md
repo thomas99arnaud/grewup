@@ -87,6 +87,26 @@ frontend/
 
 Les modules futurs (profil, scoring, génération CV/LM) s'ajoutent dans `backend/modules/` et `frontend/src/modules/`.
 
+## Génération CV / lettre
+
+Page **CV / lettre** (`/apply`) : coller le texte d'une offre. Grew relit le Word de suivi (`backend/modules/applications/suivi-competences.docx`) à chaque génération, le compacte, appelle le LLM, puis **exporte deux PDF** (CV + lettre) au format Times / bleu des CV Word de Thomas.
+
+Modifie ce `.docx` dans le projet : la génération suivante prend les changements, sans rebuild. Pour pointer vers un autre fichier :
+
+```
+CANDIDATE_DOSSIER_PATH=C:\Users\...\Suivi de compétences.docx
+```
+
+Dans `.env` :
+
+```
+OPENAI_API_KEY=sk-...
+OPENAI_BASE_URL=https://openrouter.ai/api/v1
+OPENAI_MODEL=anthropic/claude-sonnet-4.5
+```
+
+Compatible avec une API OpenAI (`OPENAI_BASE_URL` pour un proxy ou un modèle local). Le dossier compact est mis en cache prompt côté Claude (préfixe stable) : enchaîner plusieurs offres dans la même session coûte moins cher.
+
 ## Tests
 
 ```bash

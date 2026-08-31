@@ -139,6 +139,26 @@ export type LanguageInput = Omit<Language, "id" | "profile_id">;
 export type ExperienceInput = Omit<Experience, "id" | "profile_id">;
 export type EducationInput = Omit<Education, "id" | "profile_id">;
 
+export interface GeneratedApplication {
+  job_title: string;
+  company: string;
+  language: string;
+  fit_summary: string;
+  emphasized_experiences: string[];
+  cv_markdown: string;
+  cover_letter: string;
+  cv_pdf_base64: string;
+  letter_pdf_base64: string;
+  cv_filename: string;
+  letter_filename: string;
+}
+
+export interface GenerateApplicationInput {
+  offer_text?: string;
+  offer_id?: string | null;
+  language?: string | null;
+}
+
 const BASE = "/api";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -148,7 +168,9 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || res.statusText);
+    throw new Error(
+      typeof err.detail === "string" ? err.detail : err.detail?.[0]?.msg || res.statusText,
+    );
   }
   if (res.status === 204) return undefined as T;
   return res.json();
@@ -200,4 +222,9 @@ export const api = {
     request<Education>("/profile/educations", { method: "POST", body: JSON.stringify(data) }),
   deleteEducation: (id: string) =>
     request<void>(`/profile/educations/${id}`, { method: "DELETE" }),
+  generateApplication: (data: GenerateApplicationInput) =>
+    request<GeneratedApplication>("/applications/generate", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
 };

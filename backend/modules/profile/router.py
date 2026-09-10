@@ -5,7 +5,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.module import BaseModule
 from backend.db.session import get_session
+from backend.modules.applications.dossier import dossier_source, load_rows, save_rows
 from backend.modules.profile.schemas import (
+    DossierResponse,
+    DossierUpdate,
     EducationCreate,
     EducationResponse,
     EducationUpdate,
@@ -167,6 +170,37 @@ async def delete_education(
 ) -> None:
     if not await service.delete_education(education_id):
         raise HTTPException(status_code=404, detail="Education not found")
+
+
+def _dossier_response() -> DossierResponse:
+    filename, updated_at = dossier_source()
+    return DossierResponse(rows=load_rows(), filename=filename, updated_at=updated_at)
+
+
+@router.get("/profile/dossier", response_model=DossierResponse)
+async def get_dossier() -> DossierResponse:
+    try:
+        return _dossier_response()
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ImportError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.put("/profile/dossier", response_model=DossierResponse)
+async def update_dossier(data: DossierUpdate) -> DossierResponse:
+    try:
+        save_rows(data.rows)
+        return _dossier_response()
+    except PermissionError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail="Le fichier Word est ouvert ailleurs. Ferme-le puis réessaie.",
+        ) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ImportError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 class ProfileModule(BaseModule):

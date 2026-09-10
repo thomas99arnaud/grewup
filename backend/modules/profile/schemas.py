@@ -147,3 +147,13 @@ class ProfileResponse(ProfileBase):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class DossierUpdate(BaseModel):
+    rows: list[list[str]]
+
+
+class DossierResponse(BaseModel):
+    rows: list[list[str]] = Field(default_factory=list)
+    filename: str
+    updated_at: datetime | None = None

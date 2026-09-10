@@ -61,8 +61,8 @@ export function GeneratePage() {
     <div className="page generate-page">
       <h1>CV et lettre</h1>
       <p className="subtitle">
-        Colle une offre. L&apos;IA sélectionne seulement les expériences pertinentes,
-        rédige un CV lisible par les ATS, puis exporte deux PDF.
+        Colle une offre. L&apos;IA s&apos;appuie sur le suivi de compétences du Répertoire
+        (le même fichier Word), choisit les expériences utiles, puis exporte deux PDF.
       </p>
 
       <div className="card">

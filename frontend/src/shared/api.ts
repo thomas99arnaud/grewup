@@ -139,6 +139,12 @@ export type LanguageInput = Omit<Language, "id" | "profile_id">;
 export type ExperienceInput = Omit<Experience, "id" | "profile_id">;
 export type EducationInput = Omit<Education, "id" | "profile_id">;
 
+export interface Dossier {
+  rows: string[][];
+  filename: string;
+  updated_at: string | null;
+}
+
 export interface GeneratedApplication {
   job_title: string;
   company: string;
@@ -203,6 +209,9 @@ export const api = {
   getProfile: () => request<CandidateProfile>("/profile"),
   updateProfile: (data: ProfileUpdate) =>
     request<CandidateProfile>("/profile", { method: "PUT", body: JSON.stringify(data) }),
+  getDossier: () => request<Dossier>("/profile/dossier"),
+  updateDossier: (rows: string[][]) =>
+    request<Dossier>("/profile/dossier", { method: "PUT", body: JSON.stringify({ rows }) }),
   createSkill: (data: SkillInput) =>
     request<Skill>("/profile/skills", { method: "POST", body: JSON.stringify(data) }),
   updateSkill: (id: string, data: Partial<SkillInput>) =>

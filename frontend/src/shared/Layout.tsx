@@ -8,13 +8,25 @@ const nav = [
   { to: "/offers/add", label: "Ajouter" },
 ];
 
+function isActive(pathname: string, to: string) {
+  if (to === "/") return pathname === "/";
+  if (to === "/offers") {
+    return (
+      pathname === "/offers" ||
+      (pathname.startsWith("/offers/") && !pathname.startsWith("/offers/add"))
+    );
+  }
+  return pathname === to || pathname.startsWith(`${to}/`);
+}
+
 export function Layout() {
   const { pathname } = useLocation();
 
   return (
     <div className="app">
-      <header className="header">
+      <aside className="sidebar">
         <Link to="/" className="brand">
+          <img src="/grew-logo.png" alt="Grew" className="brand-logo" />
           Grew
         </Link>
         <nav className="nav">
@@ -22,18 +34,13 @@ export function Layout() {
             <Link
               key={item.to}
               to={item.to}
-              className={
-                pathname === item.to ||
-                (item.to !== "/" && pathname.startsWith(item.to))
-                  ? "active"
-                  : ""
-              }
+              className={isActive(pathname, item.to) ? "active" : ""}
             >
               {item.label}
             </Link>
           ))}
         </nav>
-      </header>
+      </aside>
       <main className="main">
         <Outlet />
       </main>

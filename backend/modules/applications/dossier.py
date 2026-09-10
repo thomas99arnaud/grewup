@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
 
@@ -142,7 +143,7 @@ def compact_rows(rows: list[tuple[str, str]]) -> str:
     return "\n".join(lines).strip() + "\n"
 
 
-def _table_rows(docx_path: Path) -> list[tuple[str, str]]:
+def _table_grid(docx_path: Path) -> list[list[str]]:
     try:
         from docx import Document
     except ImportError as exc:
@@ -152,18 +153,23 @@ def _table_rows(docx_path: Path) -> list[tuple[str, str]]:
         ) from exc
 
     table = Document(str(docx_path)).tables[0]
-    rows: list[tuple[str, str]] = []
-    for row in table.rows:
-        left = row.cells[0].text.strip()
-        right = row.cells[1].text.strip() if len(row.cells) > 1 else ""
-        rows.append((left, right))
-    return rows
+    return [[cell.text.strip() for cell in row.cells] for row in table.rows]
+
+
+def _pairs_from_grid(grid: list[list[str]]) -> list[tuple[str, str]]:
+    pairs: list[tuple[str, str]] = []
+    for cells in grid:
+        if not any(cell.strip() for cell in cells):
+            continue
+        left = cells[0].strip() if cells else ""
+        right = " | ".join(cell.strip() for cell in cells[1:] if cell.strip())
+        pairs.append((left, right))
+    return pairs
 
 
 @lru_cache(maxsize=4)
 def _compact_from_docx_cached(path_str: str, mtime_ns: int, size: int) -> str:
-    rows = _table_rows(Path(path_str))
-    return compact_rows(rows)
+    return compact_rows(_pairs_from_grid(_table_grid(Path(path_str))))
 
 
 def _resolve_path() -> Path:
@@ -189,3 +195,113 @@ def load_dossier() -> str:
         stat = path.stat()
         return _compact_from_docx_cached(str(path.resolve()), stat.st_mtime_ns, stat.st_size)
     return path.read_text(encoding="utf-8")
+
+
+def load_rows() -> list[list[str]]:
+    """Toutes les cellules du tableau Word."""
+    path = _resolve_path()
+    if path.suffix.lower() != ".docx":
+        return []
+    return _table_grid(path)
+
+
+def dossier_source() -> tuple[str, datetime | None]:
+    """Nom du fichier et date de dernière modification."""
+    path = _resolve_path()
+    mtime = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
+    return path.name, mtime
+
+
+def _docx_write_path() -> Path:
+    configured = (settings.candidate_dossier_path or "").strip()
+    if configured:
+        path = Path(configured)
+        if path.suffix.lower() == ".docx":
+            return path
+    return DEFAULT_DOCX
+
+
+def _set_cell_text(cell, text: str) -> None:
+    cell.text = text
+
+
+def _resize_table(table, needed: int) -> None:
+    needed = max(needed, 1)
+    while len(table.rows) < needed:
+        table.add_row()
+    tbl = table._tbl
+    while len(table.rows) > needed:
+        tbl.remove(table.rows[-1]._tr)
+
+
+def _normalize_grid(rows: list[list[str]]) -> list[list[str]]:
+    cleaned: list[list[str]] = []
+    for row in rows:
+        cells = [cell.strip() for cell in row]
+        if any(cells):
+            cleaned.append(cells)
+    ncols = max((len(row) for row in cleaned), default=2)
+    ncols = max(ncols, 1)
+    if not cleaned:
+        return [[""] * ncols]
+    return [row + [""] * (ncols - len(row)) for row in cleaned]
+
+
+def _fill_table(table, grid: list[list[str]]) -> None:
+    _resize_table(table, len(grid))
+    for index, cells in enumerate(grid):
+        row_cells = table.rows[index].cells
+        for col, text in enumerate(cells):
+            if col < len(row_cells):
+                _set_cell_text(row_cells[col], text)
+
+
+def _rebuild_first_table(doc, grid: list[list[str]]) -> None:
+    nrows = max(len(grid), 1)
+    ncols = max(len(grid[0]) if grid else 0, 1)
+    new_table = doc.add_table(rows=nrows, cols=ncols)
+    try:
+        new_table.style = "Table Grid"
+    except ValueError:
+        pass
+    padded = grid or [[""] * ncols]
+    for index, cells in enumerate(padded):
+        for col, text in enumerate(cells):
+            _set_cell_text(new_table.cell(index, col), text)
+    if len(doc.tables) >= 2:
+        old = doc.tables[0]
+        old._tbl.addnext(new_table._tbl)
+        old._tbl.getparent().remove(old._tbl)
+
+
+def save_rows(rows: list[list[str]]) -> None:
+    """Écrit le tableau dans le Word (nombre de colonnes et de lignes variable)."""
+    try:
+        from docx import Document
+    except ImportError as exc:
+        raise ImportError(
+            "python-docx est requis pour écrire le suivi Word. "
+            "Installe-le dans le venv : pip install python-docx"
+        ) from exc
+
+    grid = _normalize_grid(rows)
+    path = _docx_write_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    if path.exists():
+        doc = Document(str(path))
+        if doc.tables:
+            table = doc.tables[0]
+            same_cols = len(table.columns) == len(grid[0])
+            if same_cols:
+                _fill_table(table, grid)
+            else:
+                _rebuild_first_table(doc, grid)
+        else:
+            _rebuild_first_table(doc, grid)
+    else:
+        doc = Document()
+        _rebuild_first_table(doc, grid)
+
+    doc.save(str(path))
+    _compact_from_docx_cached.cache_clear()

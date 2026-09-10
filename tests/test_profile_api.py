@@ -61,3 +61,46 @@ async def test_profile_sections_crud(client: AsyncClient):
     skill_id = profile["skills"][0]["id"]
     assert (await client.delete(f"/api/profile/skills/{skill_id}")).status_code == 204
     assert len((await client.get("/api/profile")).json()["skills"]) == 0
+
+
+@pytest.mark.asyncio
+async def test_dossier_api_reads_and_writes_word(client: AsyncClient, tmp_path, monkeypatch):
+    from docx import Document
+
+    from backend.core.config import settings
+    from backend.modules.applications.dossier import _compact_from_docx_cached
+
+    path = tmp_path / "suivi-competences.docx"
+    doc = Document()
+    table = doc.add_table(rows=1, cols=2)
+    table.rows[0].cells[0].text = "Compétence initiale"
+    table.rows[0].cells[1].text = "Python"
+    doc.save(path)
+    monkeypatch.setattr(settings, "candidate_dossier_path", str(path))
+    _compact_from_docx_cached.cache_clear()
+
+    listed = await client.get("/api/profile/dossier")
+    assert listed.status_code == 200
+    body = listed.json()
+    assert body["filename"] == "suivi-competences.docx"
+    assert body["rows"] == [["Compétence initiale", "Python"]]
+
+    updated = await client.put(
+        "/api/profile/dossier",
+        json={
+            "rows": [
+                ["IAS RAG", "Python, LangChain"],
+                ["Ministère des Transports", "2025 | Montréal"],
+            ]
+        },
+    )
+    assert updated.status_code == 200
+    rows = updated.json()["rows"]
+    assert rows[0][0] == "IAS RAG"
+    assert rows[1][1] == "2025 | Montréal"
+
+    reloaded = (await client.get("/api/profile/dossier")).json()["rows"]
+    assert reloaded == rows
+    from backend.modules.applications.dossier import load_rows
+
+    assert load_rows()[0] == ["IAS RAG", "Python, LangChain"]

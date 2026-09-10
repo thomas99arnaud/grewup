@@ -1,34 +1,27 @@
-"""PDF CV + lettre au format des documents Word de Thomas (Times, bleu 2F5496, A4)."""
+"""PDF CV ATS-friendly : Times New Roman, A4, 15 mm, une colonne, pas de tableaux."""
 
 from __future__ import annotations
 
 import base64
 import io
+import os
 import re
 import unicodedata
+from functools import lru_cache
+from pathlib import Path
 from xml.sax.saxutils import escape
 
-from reportlab.lib.colors import HexColor, white
-from reportlab.lib.enums import TA_JUSTIFY, TA_LEFT, TA_RIGHT
+from reportlab.lib.colors import HexColor
+from reportlab.lib.enums import TA_JUSTIFY, TA_LEFT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
-from reportlab.platypus import (
-    HRFlowable,
-    KeepTogether,
-    Paragraph,
-    SimpleDocTemplate,
-    Spacer,
-    Table,
-    TableStyle,
-)
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.platypus import KeepTogether, Paragraph, SimpleDocTemplate, Spacer
 
-NAVY = HexColor("#2F5496")
-INK = HexColor("#272727")
-MUTED = HexColor("#595959")
-RULE = HexColor("#2F5496")
-
-MARGIN = 16 * mm
+INK = HexColor("#000000")
+MARGIN = 15 * mm
 
 SECTION_ALIASES = {
     "EXPERIENCES PROFESSIONNELLES": "experience",
@@ -45,6 +38,35 @@ SECTION_ALIASES = {
     "PROJECTS & INTERESTS": "interests",
     "PROJECTS AND INTERESTS": "interests",
 }
+
+SKILL_PREFIXES = (
+    "langages",
+    "ia / data",
+    "ia/data",
+    "backend",
+    "infrastructure",
+    "langues",
+    "languages",
+    "projets et centres",
+    "projects & interests",
+    "projects and interests",
+)
+
+
+@lru_cache(maxsize=1)
+def _font_names() -> tuple[str, str, str]:
+    """Times New Roman du système, sinon Times intégré."""
+    fonts = Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts"
+    files = {
+        "TimesNewRoman": fonts / "times.ttf",
+        "TimesNewRoman-Bold": fonts / "timesbd.ttf",
+        "TimesNewRoman-Italic": fonts / "timesi.ttf",
+    }
+    if all(path.exists() for path in files.values()):
+        for name, path in files.items():
+            pdfmetrics.registerFont(TTFont(name, str(path)))
+        return "TimesNewRoman", "TimesNewRoman-Bold", "TimesNewRoman-Italic"
+    return "Times-Roman", "Times-Bold", "Times-Italic"
 
 
 def _norm_section(line: str) -> str:
@@ -65,10 +87,10 @@ def _winansi(text: str) -> str:
         "\u2018": "'",
         "\u201c": '"',
         "\u201d": '"',
-        "\u2013": "-",
-        "\u2014": "-",
+        "\u2013": "–",
+        "\u2014": "–",
         "\u2022": "-",
-        "\u2192": "->",
+        "\u2192": "→",
         "\u00a0": " ",
         "œ": "oe",
         "Œ": "OE",
@@ -89,30 +111,42 @@ def _p(text: str, style: ParagraphStyle) -> Paragraph:
     return Paragraph(escape(_winansi(text)).replace("\n", "<br/>"), style)
 
 
+def _line(left: str, right: str, left_role: str, style: ParagraphStyle) -> Paragraph:
+    """Une seule ligne texte (ATS) : gras ou italique à gauche, lieu/dates à droite du tiret."""
+    left_html = escape(_winansi(left))
+    right_html = escape(_winansi(right))
+    if left_role == "bold":
+        left_html = f"<b>{left_html}</b>"
+    elif left_role == "italic":
+        left_html = f"<i>{left_html}</i>"
+    return Paragraph(f"{left_html} – {right_html}", style)
+
+
 def _styles() -> dict[str, ParagraphStyle]:
+    roman, bold, _italic = _font_names()
     return {
         "name": ParagraphStyle(
             "cvName",
-            fontName="Times-Bold",
-            fontSize=16,
-            leading=20,
-            textColor=NAVY,
+            fontName=bold,
+            fontSize=12,
+            leading=15,
+            textColor=INK,
             alignment=TA_LEFT,
-            spaceAfter=2,
+            spaceAfter=1,
         ),
         "contact": ParagraphStyle(
             "cvContact",
-            fontName="Times-Roman",
-            fontSize=10,
-            leading=13,
-            textColor=MUTED,
+            fontName=roman,
+            fontSize=12,
+            leading=15,
+            textColor=INK,
             alignment=TA_LEFT,
             spaceAfter=8,
         ),
         "pitch": ParagraphStyle(
             "cvPitch",
-            fontName="Times-Roman",
-            fontSize=10.5,
+            fontName=roman,
+            fontSize=11,
             leading=14,
             textColor=INK,
             alignment=TA_JUSTIFY,
@@ -120,74 +154,80 @@ def _styles() -> dict[str, ParagraphStyle]:
         ),
         "section": ParagraphStyle(
             "cvSection",
-            fontName="Times-Bold",
-            fontSize=11.5,
+            fontName=bold,
+            fontSize=12,
+            leading=15,
+            textColor=INK,
+            spaceBefore=8,
+            spaceAfter=4,
+        ),
+        "org": ParagraphStyle(
+            "cvOrg",
+            fontName=roman,
+            fontSize=11,
             leading=14,
-            textColor=NAVY,
-            spaceBefore=10,
-            spaceAfter=3,
-        ),
-        "leftBold": ParagraphStyle(
-            "cvLeftBold",
-            fontName="Times-Bold",
-            fontSize=10.5,
-            leading=13,
             textColor=INK,
+            spaceAfter=0,
         ),
-        "right": ParagraphStyle(
-            "cvRight",
-            fontName="Times-Italic",
-            fontSize=10.5,
-            leading=13,
-            textColor=MUTED,
-            alignment=TA_RIGHT,
-        ),
-        "left": ParagraphStyle(
-            "cvLeft",
-            fontName="Times-Roman",
-            fontSize=10.5,
-            leading=13,
+        "role": ParagraphStyle(
+            "cvRole",
+            fontName=roman,
+            fontSize=11,
+            leading=14,
             textColor=INK,
+            spaceAfter=2,
         ),
         "intro": ParagraphStyle(
             "cvIntro",
-            fontName="Times-Italic",
-            fontSize=10.5,
+            fontName=roman,
+            fontSize=11,
             leading=13.5,
             textColor=INK,
-            spaceBefore=1,
+            alignment=TA_JUSTIFY,
+            spaceBefore=2,
             spaceAfter=1,
         ),
         "bullet": ParagraphStyle(
             "cvBullet",
-            fontName="Times-Roman",
-            fontSize=10.5,
+            fontName=roman,
+            fontSize=11,
             leading=13.5,
             textColor=INK,
-            leftIndent=12,
-            bulletIndent=0,
-            spaceBefore=0.5,
-            spaceAfter=0.5,
+            alignment=TA_JUSTIFY,
+            leftIndent=14,
+            firstLineIndent=-10,
+            spaceBefore=0.4,
+            spaceAfter=0.4,
+        ),
+        "skill": ParagraphStyle(
+            "cvSkill",
+            fontName=bold,
+            fontSize=11,
+            leading=13.5,
+            textColor=INK,
+            alignment=TA_JUSTIFY,
+            spaceAfter=2,
         ),
         "body": ParagraphStyle(
             "cvBody",
-            fontName="Times-Roman",
-            fontSize=10.5,
-            leading=14,
+            fontName=roman,
+            fontSize=11,
+            leading=13.5,
             textColor=INK,
-            spaceAfter=3,
+            alignment=TA_JUSTIFY,
+            spaceAfter=2,
         ),
         "letterName": ParagraphStyle(
             "lmName",
-            fontName="Times-Bold",
-            fontSize=13,
-            leading=16,
+            fontName=bold,
+            fontSize=12,
+            leading=15,
             textColor=INK,
             spaceAfter=2,
         ),
         "letterMeta": ParagraphStyle(
             "lmMeta",
-            fontName="Times-Roman",
+            fontName=roman,
             fontSize=11,
             leading=14.5,
             textColor=INK,
@@ -195,35 +235,14 @@ def _styles() -> dict[str, ParagraphStyle]:
         ),
         "letterBody": ParagraphStyle(
             "lmBody",
-            fontName="Times-Roman",
+            fontName=roman,
             fontSize=11,
-            leading=15.5,
+            leading=15,
             textColor=INK,
             alignment=TA_JUSTIFY,
             spaceAfter=10,
         ),
     }
-
-
-def _pair_row(left: str, right: str, styles: dict[str, ParagraphStyle], left_bold: bool) -> Table:
-    left_style = styles["leftBold"] if left_bold else styles["left"]
-    table = Table(
-        [[_p(left, left_style), _p(right, styles["right"])]],
-        colWidths=[120 * mm, 58 * mm],
-    )
-    table.setStyle(
-        TableStyle(
-            [
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ("LEFTPADDING", (0, 0), (-1, -1), 0),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-                ("TOPPADDING", (0, 0), (-1, -1), 1),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
-                ("BACKGROUND", (0, 0), (-1, -1), white),
-            ]
-        )
-    )
-    return table
 
 
 def _split_left_right(line: str) -> tuple[str, str] | None:
@@ -236,15 +255,20 @@ def _split_left_right(line: str) -> tuple[str, str] | None:
 
 
 def _is_bullet(line: str) -> bool:
-    return bool(re.match(r"^([\-\u2013\u2014\u2022]|o)\s+", line.strip()))
+    return bool(re.match(r"^([\-\u2013\u2014\u2022*]|o)\s+", line.strip()))
 
 
 def _bullet_text(line: str) -> str:
-    return re.sub(r"^([\-\u2013\u2014\u2022]|o)\s+", "", line.strip())
+    return re.sub(r"^([\-\u2013\u2014\u2022*]|o)\s+", "", line.strip())
 
 
 def _looks_like_dates(text: str) -> bool:
     return bool(re.search(r"(19|20)\d{2}|auj|present|aujourd", text, re.I))
+
+
+def _is_skill_line(line: str) -> bool:
+    head = line.split(":", 1)[0].strip().lower()
+    return any(head.startswith(prefix) for prefix in SKILL_PREFIXES)
 
 
 def _cv_story(text: str, styles: dict[str, ParagraphStyle]) -> list:
@@ -257,8 +281,11 @@ def _cv_story(text: str, styles: dict[str, ParagraphStyle]) -> list:
     story: list = []
     story.append(_p(lines[0].strip(), styles["name"]))
     idx = 1
-    if idx < len(lines) and lines[idx].strip().startswith("|"):
-        story.append(_p(lines[idx].strip().lstrip("| ").replace("|", " · "), styles["contact"]))
+    if idx < len(lines) and ("|" in lines[idx] or "@" in lines[idx]):
+        contact = lines[idx].strip()
+        if contact.startswith("|"):
+            contact = contact
+        story.append(_p(contact, styles["contact"]))
         idx += 1
 
     pitch: list[str] = []
@@ -281,13 +308,9 @@ def _cv_story(text: str, styles: dict[str, ParagraphStyle]) -> list:
     def add_section(title: str) -> None:
         flush_block()
         story.append(_p(title.upper(), styles["section"]))
-        story.append(
-            HRFlowable(width="100%", thickness=0.8, color=RULE, spaceBefore=0, spaceAfter=6)
-        )
 
     while idx < len(lines):
-        raw = lines[idx]
-        stripped = raw.strip()
+        stripped = lines[idx].strip()
         idx += 1
         if not stripped:
             flush_block()
@@ -299,19 +322,22 @@ def _cv_story(text: str, styles: dict[str, ParagraphStyle]) -> list:
             continue
         if _is_bullet(stripped):
             target = block if block else story
-            target.append(_p(f"• {_bullet_text(stripped)}", styles["bullet"]))
+            target.append(_p(f"- {_bullet_text(stripped)}", styles["bullet"]))
             continue
         pair = _split_left_right(stripped)
         if pair:
             left, right = pair
-            flush_block()
-            bold = not _looks_like_dates(right) or current_kind == "education"
-            if _looks_like_dates(right) and current_kind == "experience":
-                bold = False
-            block.append(_pair_row(left, right, styles, left_bold=bold))
+            if _looks_like_dates(right):
+                block.append(_line(left, right, "italic", styles["role"]))
+            else:
+                if current_kind in {"experience", "education"} and block:
+                    flush_block()
+                block.append(_line(left, right, "bold", styles["org"]))
             continue
         target = block if block else story
-        if current_kind == "experience" and not _is_bullet(stripped):
+        if current_kind == "skills" and _is_skill_line(stripped):
+            target.append(_p(stripped, styles["skill"]))
+        elif current_kind == "experience":
             target.append(_p(stripped, styles["intro"]))
         else:
             target.append(_p(stripped, styles["body"]))
@@ -327,7 +353,7 @@ def _letter_story(text: str, styles: dict[str, ParagraphStyle]) -> list:
     header_done = False
     name_re = re.compile(r"^thomas\s+arnaud\.?$", re.I)
 
-    def emit_signature(lines: list[str]) -> list[str]:
+    def emit_signature(lines: list[str]):
         if len(lines) >= 2 and name_re.match(lines[-1]):
             return lines[:-1], lines[-1]
         return lines, None

@@ -61,8 +61,8 @@ export function GeneratePage() {
     <div className="page generate-page">
       <h1>CV et lettre</h1>
       <p className="subtitle">
-        Colle une offre. Grew rédige un CV et une lettre au format de tes documents Word,
-        puis exporte deux PDF prêts à envoyer.
+        Colle une offre. L&apos;IA sélectionne seulement les expériences pertinentes,
+        rédige un CV lisible par les ATS, puis exporte deux PDF.
       </p>
 
       <div className="card">
@@ -102,7 +102,12 @@ export function GeneratePage() {
             <p className="hint">{result.fit_summary}</p>
             {result.emphasized_experiences.length > 0 && (
               <p className="hint">
-                Mis en avant : {result.emphasized_experiences.join(" · ")}
+                Gardé : {result.emphasized_experiences.join(" · ")}
+              </p>
+            )}
+            {(result.omitted_experiences?.length ?? 0) > 0 && (
+              <p className="hint">
+                Omise : {result.omitted_experiences.join(" · ")}
               </p>
             )}
             <div className="pdf-actions">

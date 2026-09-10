@@ -16,6 +16,7 @@ class GenerateResponse(BaseModel):
     language: str
     fit_summary: str
     emphasized_experiences: list[str] = Field(default_factory=list)
+    omitted_experiences: list[str] = Field(default_factory=list)
     cv_markdown: str
     cover_letter: str
     cv_pdf_base64: str

@@ -41,6 +41,7 @@ async def test_generate_success_mocked_llm(client: AsyncClient):
         "language": "fr",
         "fit_summary": "Le RAG IAS et le backend .NET collent à l'offre.",
         "emphasized_experiences": ["IAS RAG", "outil de configuration industrielle"],
+        "omitted_experiences": ["MTQ"],
         "cv_markdown": "# Thomas Arnaud\n\nIngénieur logiciel / IA",
         "cover_letter": "Madame, Monsieur,\n\nJe postule...",
     }
@@ -58,3 +59,4 @@ async def test_generate_success_mocked_llm(client: AsyncClient):
     assert data["letter_pdf_base64"]
     assert data["cv_filename"].endswith(".pdf")
     assert data["letter_filename"].endswith(".pdf")
+    assert data["omitted_experiences"] == ["MTQ"]

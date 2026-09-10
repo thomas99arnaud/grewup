@@ -4,7 +4,7 @@ from backend.modules.applications.pdfs import render_application_pdfs
 
 
 SAMPLE_CV = """Thomas ARNAUD – Ingénieur logiciel / IA
-| +33 6 52 27 09 27 |  thomas.arnaud999@gmail.com | LinkedIn | GitHub
+| +33 6 52 27 09 27 |  thomas.arnaud999@gmail.com
 
 Ingénieur logiciel spécialisé en IA appliquée, RAG et backend .NET. Expérience industrielle et internationale (Canada).
 
@@ -71,3 +71,5 @@ def test_render_two_pdfs():
     assert files["cv_filename"].endswith(".pdf")
     assert b"Thomas" in cv or len(cv) > 800
     assert len(letter) > 800
+    # Police du Word : Times New Roman si présente sur la machine
+    assert b"Times" in cv

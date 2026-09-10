@@ -145,6 +145,7 @@ export interface GeneratedApplication {
   language: string;
   fit_summary: string;
   emphasized_experiences: string[];
+  omitted_experiences?: string[];
   cv_markdown: string;
   cover_letter: string;
   cv_pdf_base64: string;

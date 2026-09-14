@@ -298,9 +298,14 @@ export const api = {
   getApplication: (id: string) => request<ApplicationDetail>(`/applications/${id}`),
   updateApplication: (
     id: string,
-    data: { status?: ApplicationStatus; notes?: string | null },
+    data: {
+      status?: ApplicationStatus;
+      notes?: string | null;
+      cv_markdown?: string;
+      cover_letter?: string;
+    },
   ) =>
-    request<ApplicationListItem>(`/applications/${id}`, {
+    request<ApplicationDetail>(`/applications/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
     }),

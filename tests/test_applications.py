@@ -139,3 +139,27 @@ async def test_patch_application_status(client: AsyncClient):
     assert body["notes"] == "Envoyé lundi"
     assert body["applied_at"]
 
+
+@pytest.mark.asyncio
+async def test_patch_documents_rerenders_pdfs(client: AsyncClient):
+    with patch(
+        "backend.modules.applications.service.llm.chat_json",
+        new=AsyncMock(return_value=FULL_FAKE),
+    ):
+        created = await client.post("/api/applications/generate", json={"offer_text": LONG_RAG_OFFER})
+    app_id = created.json()["application_id"]
+    patched = await client.patch(
+        f"/api/applications/{app_id}",
+        json={
+            "cv_markdown": "Thomas ARNAUD – Ingénieur édité\n\nEXPERIENCES PROFESSIONNELLES\nIAS",
+            "cover_letter": "Lettre corrigée à la main.",
+        },
+    )
+    assert patched.status_code == 200
+    body = patched.json()
+    assert "Ingénieur édité" in body["cv_markdown"]
+    assert "Lettre corrigée" in body["cover_letter"]
+    assert body["cv_pdf_base64"]
+    assert body["letter_filename"].endswith("Lettre_de_motivation.pdf")
+
+

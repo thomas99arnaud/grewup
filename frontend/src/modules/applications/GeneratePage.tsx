@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { api, GeneratedApplication } from "../../shared/api";
-import { downloadPdf, PdfFrame } from "./pdf";
+import { DocumentEditors } from "./DocumentEditors";
 
 type ApplyState = {
   offerText?: string;
@@ -51,8 +51,8 @@ export function GeneratePage() {
     <div className="page generate-page">
       <h1>CV et lettre</h1>
       <p className="subtitle">
-        Colle une offre. L&apos;IA sélectionne les expériences, réutilise un CV déjà produit
-        s&apos;il collerait au même profil, et écrit toujours une nouvelle lettre.
+        Colle une offre. Tu peux ensuite corriger le CV et la lettre, mettre à jour
+        l&apos;aperçu, puis exporter les PDF.
       </p>
 
       <div className="card">
@@ -105,20 +105,6 @@ export function GeneratePage() {
               <p className="hint">Omise : {result.omitted_experiences.join(" · ")}</p>
             )}
             <div className="pdf-actions">
-              <button
-                type="button"
-                className="btn primary"
-                onClick={() => downloadPdf(result.cv_pdf_base64, result.cv_filename)}
-              >
-                Télécharger le CV (PDF)
-              </button>
-              <button
-                type="button"
-                className="btn primary"
-                onClick={() => downloadPdf(result.letter_pdf_base64, result.letter_filename)}
-              >
-                Télécharger la lettre (PDF)
-              </button>
               {result.application_id && (
                 <Link className="btn ghost" to={`/applications/${result.application_id}`}>
                   Voir la candidature
@@ -137,34 +123,11 @@ export function GeneratePage() {
             </div>
           </section>
 
-          <div className="generate-results">
-            <section className="card">
-              <div className="card-head">
-                <h2>CV</h2>
-                <button
-                  type="button"
-                  className="btn ghost"
-                  onClick={() => downloadPdf(result.cv_pdf_base64, result.cv_filename)}
-                >
-                  PDF
-                </button>
-              </div>
-              <PdfFrame base64={result.cv_pdf_base64} />
-            </section>
-            <section className="card">
-              <div className="card-head">
-                <h2>Lettre</h2>
-                <button
-                  type="button"
-                  className="btn ghost"
-                  onClick={() => downloadPdf(result.letter_pdf_base64, result.letter_filename)}
-                >
-                  PDF
-                </button>
-              </div>
-              <PdfFrame base64={result.letter_pdf_base64} />
-            </section>
-          </div>
+          <DocumentEditors
+            key={result.application_id}
+            docs={result}
+            onDocsChange={(next) => setResult((prev) => (prev ? { ...prev, ...next } : prev))}
+          />
         </>
       )}
     </div>

@@ -1,7 +1,7 @@
 from backend.modules.applications import llm
 from backend.modules.applications.dossier import load_dossier
 from backend.modules.applications.llm import LETTER_JSON_SCHEMA
-from backend.modules.applications.pdfs import render_application_pdfs
+from backend.modules.applications.pdfs import order_cv_text, render_application_pdfs
 from backend.modules.applications.signature import adapt_cv
 from backend.modules.profile.models import CandidateProfile
 
@@ -49,6 +49,7 @@ DENSITÉ :
 - Centres d'intérêt : 3 puces courtes, seulement si ça sert (asso / sport / perso). Pas de budget, pas SPV sauf offre pompier.
 - Titres de sections EXACTS, seuls, en majuscules : EXPERIENCES PROFESSIONNELLES (ou PROFESSIONAL EXPERIENCE), FORMATION (ou EDUCATION), COMPÉTENCES & LANGUES (ou SKILLS & LANGUAGES), PROJETS ET CENTRES D'INTÉRÊT (ou PROJECTS & INTERESTS).
 - Lignes entreprise / école : « Nom — Ville, Pays ». Ligne suivante : « Intitulé — dates ».
+- Expériences : du plus récent au plus ancien (IAS 2026 avant le stage MTQ 2025). Formation : diplôme le plus récent d'abord.
 
 FORMAT DU CV — densité et structure (exemple d'une SÉLECTION : offre data / transport → MTQ seul, IAS omis) :
 
@@ -85,11 +86,11 @@ Ne recopie pas plusieurs de ces exemples « pour remplir ». Titres EN si CV ang
 
 FORMATION
 
-ENSSAT Lannion — Lannion, France
-Diplôme d'ingénieur en informatique (IA, data) — 2022 – 2025
-
 Université de Sherbrooke — Sherbrooke, Canada
 Maîtrise en informatique (science des données et IA) — 2024 – 2025
+
+ENSSAT Lannion — Lannion, France
+Diplôme d'ingénieur en informatique (IA, data) — 2022 – 2025
 
 Lycée Alphonse Daudet — Nîmes, France
 CPGE PSI — 2020 – 2022
@@ -235,7 +236,7 @@ async def generate_application(
         f"=== OFFRE ===\n{offer_text.strip()}\n"
     )
     data = await llm.chat_json(system, user)
-    cv_text = str(data.get("cv_markdown") or "")
+    cv_text = order_cv_text(str(data.get("cv_markdown") or ""))
     letter_text = str(data.get("cover_letter") or "")
     job_title = str(data.get("job_title") or "")
     company = str(data.get("company") or "")
@@ -276,7 +277,7 @@ async def generate_letter_only(
     )
     job_title = str(data.get("job_title") or "")
     company = str(data.get("company") or "")
-    cv_text = adapt_cv(reused_cv, job_title, offer_text)
+    cv_text = order_cv_text(adapt_cv(reused_cv, job_title, offer_text))
     letter_text = str(data.get("cover_letter") or "")
     pdfs = render_application_pdfs(cv_text, letter_text, job_title, company)
     return {

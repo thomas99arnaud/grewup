@@ -39,6 +39,8 @@ class GenerateResponse(BaseModel):
 class ApplicationUpdate(BaseModel):
     status: ApplicationStatus | None = None
     notes: str | None = None
+    cv_markdown: str | None = None
+    cover_letter: str | None = None
 
 
 class ApplicationListItem(BaseModel):

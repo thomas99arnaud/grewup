@@ -23,6 +23,7 @@ from backend.modules.applications.signature import (
     omitted_labels,
     select_blocks,
 )
+from backend.modules.applications.pdfs import order_cv_text
 from backend.modules.applications.store import (
     application_payload,
     find_reusable,
@@ -169,17 +170,32 @@ async def get_saved(
     return ApplicationDetail(**data)
 
 
-@router.patch("/{application_id}", response_model=ApplicationListItem)
+@router.patch("/{application_id}", response_model=ApplicationDetail)
 async def patch_saved(
     application_id: str,
     body: ApplicationUpdate,
     session: Annotated[AsyncSession, Depends(get_session)],
-) -> ApplicationListItem:
+) -> ApplicationDetail:
     row = await get_application(session, application_id)
     if not row:
         raise HTTPException(status_code=404, detail="Candidature introuvable")
-    row = await update_application(session, row, status=body.status, notes=body.notes)
-    return ApplicationListItem.model_validate(row)
+    row = await update_application(
+        session,
+        row,
+        status=body.status,
+        notes=body.notes,
+        cv_markdown=order_cv_text(body.cv_markdown) if body.cv_markdown is not None else None,
+        cover_letter=body.cover_letter,
+    )
+    data = application_payload(row, with_pdfs=True)
+    extra: dict = {}
+    if row.reused_from_id:
+        source = await get_application(session, row.reused_from_id)
+        if source:
+            extra["reused_from_title"] = source.job_title
+            extra["reused_from_company"] = source.company
+    data.update(extra)
+    return ApplicationDetail(**data)
 
 
 class ApplicationsModule(BaseModule):

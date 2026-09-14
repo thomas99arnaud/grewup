@@ -6,7 +6,7 @@ import {
   ApplicationStatus,
   APPLICATION_STATUS_LABELS,
 } from "../../shared/api";
-import { downloadPdf, PdfFrame } from "./pdf";
+import { DocumentEditors } from "./DocumentEditors";
 
 const STATUSES: ApplicationStatus[] = ["draft", "applied", "interview", "rejected", "hired"];
 
@@ -31,7 +31,7 @@ export function ApplicationDetailPage() {
   const setStatus = async (status: ApplicationStatus) => {
     if (!row) return;
     const updated = await api.updateApplication(row.application_id, { status });
-    setRow((prev) => (prev ? { ...prev, status: updated.status, applied_at: updated.applied_at } : prev));
+    setRow(updated);
   };
 
   const saveNotes = async (e: FormEvent) => {
@@ -40,7 +40,7 @@ export function ApplicationDetailPage() {
     setSaving(true);
     try {
       const updated = await api.updateApplication(row.application_id, { notes });
-      setRow((prev) => (prev ? { ...prev, notes: updated.notes } : prev));
+      setRow(updated);
     } finally {
       setSaving(false);
     }
@@ -94,37 +94,11 @@ export function ApplicationDetailPage() {
         )}
       </div>
 
-      <div className="pdf-actions">
-        <button
-          type="button"
-          className="btn primary"
-          onClick={() => downloadPdf(row.cv_pdf_base64, row.cv_filename)}
-        >
-          Télécharger le CV (PDF)
-        </button>
-        <button
-          type="button"
-          className="btn primary"
-          onClick={() => downloadPdf(row.letter_pdf_base64, row.letter_filename)}
-        >
-          Télécharger la lettre (PDF)
-        </button>
-      </div>
-
-      <div className="generate-results">
-        <section className="card">
-          <div className="card-head">
-            <h2>CV</h2>
-          </div>
-          <PdfFrame base64={row.cv_pdf_base64} />
-        </section>
-        <section className="card">
-          <div className="card-head">
-            <h2>Lettre</h2>
-          </div>
-          <PdfFrame base64={row.letter_pdf_base64} />
-        </section>
-      </div>
+      <DocumentEditors
+        key={row.application_id}
+        docs={row}
+        onDocsChange={(next) => setRow((prev) => (prev ? { ...prev, ...next } : prev))}
+      />
 
       <section className="card">
         <h2>Notes</h2>

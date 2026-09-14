@@ -120,6 +120,8 @@ async def update_application(
     *,
     status: ApplicationStatus | None = None,
     notes: str | None = None,
+    cv_markdown: str | None = None,
+    cover_letter: str | None = None,
 ) -> Application:
     if status is not None:
         row.status = status
@@ -127,5 +129,9 @@ async def update_application(
             row.applied_at = datetime.now(timezone.utc)
     if notes is not None:
         row.notes = notes
+    if cv_markdown is not None:
+        row.cv_markdown = cv_markdown
+    if cover_letter is not None:
+        row.cover_letter = cover_letter
     await session.flush()
     return row

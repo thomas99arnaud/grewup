@@ -66,10 +66,44 @@ def test_render_two_pdfs():
     letter = base64.b64decode(files["letter_pdf_base64"])
     assert cv.startswith(b"%PDF")
     assert letter.startswith(b"%PDF")
-    assert files["cv_filename"].startswith("CV_Thomas_ARNAUD_")
-    assert files["letter_filename"].startswith("LM_Thomas_ARNAUD_")
-    assert files["cv_filename"].endswith(".pdf")
+    assert files["cv_filename"].startswith("Thomas_ARNAUD")
+    assert files["cv_filename"].endswith("_CV.pdf")
+    assert "Lettre_de_motivation" in files["letter_filename"]
+    assert files["letter_filename"].endswith(".pdf")
     assert b"Thomas" in cv or len(cv) > 800
     assert len(letter) > 800
     # Police du Word : Times New Roman si présente sur la machine
     assert b"Times" in cv
+
+
+def test_experiences_newest_first():
+    from backend.modules.applications.pdfs import order_cv_text
+
+    shuffled = SAMPLE_CV.replace(
+        """EXPERIENCES PROFESSIONNELLES
+
+IAS (environnement industriel) — Laudun, France
+Ingénieur logiciel / IA — janvier 2026 – auj.
+Développement d'un chatbot sécurisé basé sur une architecture RAG :
+- Conception d'une solution RAG en Python pour des milliers de documents.
+- Déploiement auprès d'un acteur majeur de l'énergie.
+
+Ministère des transports du Québec — Montréal, Canada
+Stagiaire-ingénieur logiciel — mai 2025 – septembre 2025
+- Application de reconstitution d'itinéraires cyclistes (OSRM, Streamlit).
+""",
+        """EXPERIENCES PROFESSIONNELLES
+
+Ministère des transports du Québec — Montréal, Canada
+Stagiaire-ingénieur logiciel — mai 2025 – septembre 2025
+- Application de reconstitution d'itinéraires cyclistes (OSRM, Streamlit).
+
+IAS (environnement industriel) — Laudun, France
+Ingénieur logiciel / IA — janvier 2026 – auj.
+Développement d'un chatbot sécurisé basé sur une architecture RAG :
+- Conception d'une solution RAG en Python pour des milliers de documents.
+- Déploiement auprès d'un acteur majeur de l'énergie.
+""",
+    )
+    ordered = order_cv_text(shuffled)
+    assert ordered.index("IAS") < ordered.index("Ministère")

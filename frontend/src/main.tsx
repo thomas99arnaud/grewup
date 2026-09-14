@@ -8,6 +8,8 @@ import { OfferDetailPage } from "./modules/offers/OfferDetailPage";
 import { AddOfferPage } from "./modules/offers/AddOfferPage";
 import { ProfilePage } from "./modules/profile/ProfilePage";
 import { GeneratePage } from "./modules/applications/GeneratePage";
+import { ApplicationsListPage } from "./modules/applications/ApplicationsListPage";
+import { ApplicationDetailPage } from "./modules/applications/ApplicationDetailPage";
 import "./index.css";
 
 createRoot(document.getElementById("root")!).render(
@@ -21,6 +23,8 @@ createRoot(document.getElementById("root")!).render(
           <Route path="offers/:id" element={<OfferDetailPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="apply" element={<GeneratePage />} />
+          <Route path="applications" element={<ApplicationsListPage />} />
+          <Route path="applications/:id" element={<ApplicationDetailPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

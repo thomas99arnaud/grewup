@@ -1,43 +1,53 @@
 import { KeyboardEvent, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { api } from "../../shared/api";
+import { DossierCell, api } from "../../shared/api";
 
-type EditorRow = { key: string; cells: string[] };
+type EditorRow = { key: string; cells: DossierCell[] };
 
 function newKey() {
   return crypto.randomUUID();
 }
 
-function columnCount(rows: string[][]) {
+function emptyCell(): DossierCell {
+  return { text: "", fill: null, bold: false, italic: false, font_size: null };
+}
+
+function columnCount(rows: DossierCell[][]) {
   const widest = Math.max(0, ...rows.map((row) => row.length));
   return widest > 0 ? widest : 2;
 }
 
-function toEditorRows(rows: string[][]): EditorRow[] {
+function toEditorRows(rows: DossierCell[][]): EditorRow[] {
   const cols = columnCount(rows);
   const mapped = rows.map((cells) => ({
     key: newKey(),
-    cells: [...cells, ...Array(Math.max(0, cols - cells.length)).fill("")],
+    cells: [
+      ...cells,
+      ...Array.from({ length: Math.max(0, cols - cells.length) }, emptyCell),
+    ],
   }));
-  return mapped.length > 0 ? mapped : [{ key: newKey(), cells: Array(cols).fill("") }];
+  return mapped.length > 0
+    ? mapped
+    : [{ key: newKey(), cells: Array.from({ length: cols }, emptyCell) }];
 }
 
 function WordCell({
-  value,
+  cell,
   onChange,
   onTab,
 }: {
-  value: string;
+  cell: DossierCell;
   onChange: (value: string) => void;
   onTab?: () => void;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  const isTitle = (cell.font_size ?? 0) >= 14;
 
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
     el.style.height = "0px";
     el.style.height = `${el.scrollHeight}px`;
-  }, [value]);
+  }, [cell.text, cell.font_size, cell.bold]);
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Tab" && !event.shiftKey && onTab) {
@@ -50,9 +60,15 @@ function WordCell({
     <textarea
       ref={ref}
       rows={1}
-      value={value}
+      className={isTitle ? "word-title-text" : undefined}
+      value={cell.text}
       onChange={(event) => onChange(event.target.value)}
       onKeyDown={onKeyDown}
+      style={{
+        fontWeight: cell.bold ? 700 : 400,
+        fontStyle: cell.italic ? "italic" : "normal",
+        fontSize: isTitle ? undefined : "11pt",
+      }}
     />
   );
 }
@@ -70,7 +86,7 @@ export function DossierEditor({
   const updatedAtRef = useRef<string | null>(null);
   const saveTimer = useRef<number | null>(null);
 
-  const applyRemote = useCallback((data: { rows: string[][]; updated_at: string | null }) => {
+  const applyRemote = useCallback((data: { rows: DossierCell[][]; updated_at: string | null }) => {
     const next = toEditorRows(data.rows);
     setRows(next);
     rowsRef.current = next;
@@ -102,7 +118,9 @@ export function DossierEditor({
     if (!dirtyRef.current) return;
     setSaving(true);
     try {
-      const payload = rowsRef.current.map((row) => row.cells.map((cell) => cell.trimEnd()));
+      const payload = rowsRef.current.map((row) =>
+        row.cells.map((cell) => ({ ...cell, text: cell.text.trimEnd() })),
+      );
       const data = await api.updateDossier(payload);
       updatedAtRef.current = data.updated_at;
       dirtyRef.current = false;
@@ -169,18 +187,21 @@ export function DossierEditor({
     markDirty(
       rows.map((item, i) =>
         i === rowIndex
-          ? { ...item, cells: item.cells.map((cell, j) => (j === colIndex ? value : cell)) }
+          ? {
+              ...item,
+              cells: item.cells.map((cell, j) => (j === colIndex ? { ...cell, text: value } : cell)),
+            }
           : item,
       ),
     );
   };
 
   const addRow = () => {
-    markDirty([...rows, { key: newKey(), cells: Array(cols).fill("") }]);
+    markDirty([...rows, { key: newKey(), cells: Array.from({ length: cols }, emptyCell) }]);
   };
 
   const addColumn = () => {
-    markDirty(rows.map((row) => ({ ...row, cells: [...row.cells, ""] })));
+    markDirty(rows.map((row) => ({ ...row, cells: [...row.cells, emptyCell()] })));
   };
 
   const removeColumn = (colIndex: number) => {
@@ -215,9 +236,13 @@ export function DossierEditor({
             {rows.map((row, rowIndex) => (
               <tr key={row.key}>
                 {row.cells.map((cell, colIndex) => (
-                  <td key={colIndex}>
+                  <td
+                    key={colIndex}
+                    className={cell.fill ? "word-filled" : undefined}
+                    style={cell.fill ? { backgroundColor: `#${cell.fill}` } : undefined}
+                  >
                     <WordCell
-                      value={cell}
+                      cell={cell}
                       onChange={(value) => setCell(rowIndex, colIndex, value)}
                       onTab={
                         rowIndex === rows.length - 1 && colIndex === cols - 1 ? addRow : undefined

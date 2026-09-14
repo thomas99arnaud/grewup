@@ -139,13 +139,32 @@ export type LanguageInput = Omit<Language, "id" | "profile_id">;
 export type ExperienceInput = Omit<Experience, "id" | "profile_id">;
 export type EducationInput = Omit<Education, "id" | "profile_id">;
 
+export interface DossierCell {
+  text: string;
+  fill: string | null;
+  bold: boolean;
+  italic: boolean;
+  font_size: number | null;
+}
+
 export interface Dossier {
-  rows: string[][];
+  rows: DossierCell[][];
   filename: string;
   updated_at: string | null;
 }
 
+export type ApplicationStatus = "draft" | "applied" | "interview" | "rejected" | "hired";
+
+export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
+  draft: "Brouillon",
+  applied: "Postulé",
+  interview: "Entretien",
+  rejected: "Refusé",
+  hired: "Embauché",
+};
+
 export interface GeneratedApplication {
+  application_id: string;
   job_title: string;
   company: string;
   language: string;
@@ -158,12 +177,49 @@ export interface GeneratedApplication {
   letter_pdf_base64: string;
   cv_filename: string;
   letter_filename: string;
+  reused: boolean;
+  reused_from_id: string | null;
+  reused_from_title?: string | null;
+  reused_from_company?: string | null;
+  status: ApplicationStatus;
 }
 
 export interface GenerateApplicationInput {
   offer_text?: string;
   offer_id?: string | null;
   language?: string | null;
+  force?: boolean;
+}
+
+export interface ApplicationListItem {
+  id: string;
+  offer_id: string | null;
+  job_title: string;
+  company: string;
+  language: string;
+  status: ApplicationStatus;
+  cv_signature: string;
+  reused_from_id: string | null;
+  emphasized_experiences: string[];
+  created_at: string;
+  applied_at: string | null;
+  notes: string | null;
+}
+
+export interface ApplicationListResponse {
+  items: ApplicationListItem[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface ApplicationDetail extends GeneratedApplication {
+  offer_id: string | null;
+  offer_text: string;
+  notes: string | null;
+  created_at: string;
+  applied_at: string | null;
+  cv_signature: string;
 }
 
 const BASE = "/api";
@@ -210,7 +266,7 @@ export const api = {
   updateProfile: (data: ProfileUpdate) =>
     request<CandidateProfile>("/profile", { method: "PUT", body: JSON.stringify(data) }),
   getDossier: () => request<Dossier>("/profile/dossier"),
-  updateDossier: (rows: string[][]) =>
+  updateDossier: (rows: DossierCell[][]) =>
     request<Dossier>("/profile/dossier", { method: "PUT", body: JSON.stringify({ rows }) }),
   createSkill: (data: SkillInput) =>
     request<Skill>("/profile/skills", { method: "POST", body: JSON.stringify(data) }),
@@ -235,6 +291,17 @@ export const api = {
   generateApplication: (data: GenerateApplicationInput) =>
     request<GeneratedApplication>("/applications/generate", {
       method: "POST",
+      body: JSON.stringify(data),
+    }),
+  listApplications: (params: URLSearchParams) =>
+    request<ApplicationListResponse>(`/applications?${params}`),
+  getApplication: (id: string) => request<ApplicationDetail>(`/applications/${id}`),
+  updateApplication: (
+    id: string,
+    data: { status?: ApplicationStatus; notes?: string | null },
+  ) =>
+    request<ApplicationListItem>(`/applications/${id}`, {
+      method: "PATCH",
       body: JSON.stringify(data),
     }),
 };

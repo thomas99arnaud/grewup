@@ -3,6 +3,7 @@ from collections.abc import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from backend.core.config import settings
+from backend.modules.applications.models import Application  # noqa: F401
 from backend.db.base import Base
 
 engine = create_async_engine(settings.database_url, echo=settings.debug)

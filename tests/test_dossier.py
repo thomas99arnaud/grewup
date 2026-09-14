@@ -1,4 +1,11 @@
-from backend.modules.applications.dossier import compact_rows, load_dossier, load_rows, save_rows
+from backend.modules.applications.dossier import (
+    compact_rows,
+    load_cells,
+    load_dossier,
+    load_rows,
+    save_cells,
+    save_rows,
+)
 
 
 def test_compact_merges_generic_courses_under_parent():
@@ -116,3 +123,50 @@ def test_save_rows_can_add_a_third_column(tmp_path, monkeypatch):
     compact = load_dossier()
     assert "Projet" in compact
     assert "2024 | Lyon" in compact
+
+
+def test_load_cells_reads_title_styles_from_word():
+    cells = load_cells()
+    titles = [row[0] for row in cells if row and row[0].get("fill") == "BFBFBF"]
+    assert titles
+    assert titles[0]["bold"] is True
+    assert titles[0]["font_size"] == 14
+    assert "préparatoires" in titles[0]["text"].lower() or "diplôme" in titles[0]["text"].lower()
+
+
+def test_save_cells_keeps_title_fill_and_font(tmp_path, monkeypatch):
+    from docx import Document
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+    from docx.shared import Pt
+
+    from backend.core.config import settings
+    from backend.modules.applications.dossier import _compact_from_docx_cached
+
+    path = tmp_path / "suivi-competences.docx"
+    doc = Document()
+    table = doc.add_table(rows=1, cols=2)
+    cell = table.rows[0].cells[0]
+    cell.text = "Titre section"
+    cell.paragraphs[0].runs[0].bold = True
+    cell.paragraphs[0].runs[0].font.size = Pt(14)
+    shade = OxmlElement("w:shd")
+    shade.set(qn("w:val"), "clear")
+    shade.set(qn("w:fill"), "BFBFBF")
+    cell._tc.get_or_add_tcPr().append(shade)
+    table.rows[0].cells[1].text = "2024"
+    doc.save(path)
+
+    monkeypatch.setattr(settings, "candidate_dossier_path", str(path))
+    _compact_from_docx_cached.cache_clear()
+
+    loaded = load_cells()
+    assert loaded[0][0]["fill"] == "BFBFBF"
+    assert loaded[0][0]["font_size"] == 14
+    loaded[0][0]["text"] = "Titre section modifié"
+    save_cells(loaded)
+    again = load_cells()
+    assert again[0][0]["text"] == "Titre section modifié"
+    assert again[0][0]["fill"] == "BFBFBF"
+    assert again[0][0]["bold"] is True
+    assert again[0][0]["font_size"] == 14

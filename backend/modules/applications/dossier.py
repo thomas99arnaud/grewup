@@ -6,6 +6,7 @@ import re
 from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 from backend.core.config import settings
 
@@ -156,6 +157,55 @@ def _table_grid(docx_path: Path) -> list[list[str]]:
     return [[cell.text.strip() for cell in row.cells] for row in table.rows]
 
 
+def _cell_fill(cell) -> str | None:
+    from docx.oxml.ns import qn
+
+    tc_pr = cell._tc.tcPr
+    if tc_pr is None:
+        return None
+    shade = tc_pr.find(qn("w:shd"))
+    if shade is None:
+        return None
+    fill = shade.get(qn("w:fill"))
+    if not fill or fill.lower() in {"auto", "ffffff"}:
+        return None
+    return fill.upper()
+
+
+def _first_run_style(cell) -> tuple[bool, bool, float | None]:
+    for paragraph in cell.paragraphs:
+        for run in paragraph.runs:
+            if not run.text.strip():
+                continue
+            size = run.font.size.pt if run.font.size else None
+            return bool(run.bold), bool(run.italic), size
+    return False, False, None
+
+
+def _read_cell(cell) -> dict[str, Any]:
+    bold, italic, font_size = _first_run_style(cell)
+    return {
+        "text": cell.text.strip(),
+        "fill": _cell_fill(cell),
+        "bold": bold,
+        "italic": italic,
+        "font_size": font_size,
+    }
+
+
+def _table_cells(docx_path: Path) -> list[list[dict[str, Any]]]:
+    try:
+        from docx import Document
+    except ImportError as exc:
+        raise ImportError(
+            "python-docx est requis pour lire le suivi Word. "
+            "Installe-le dans le venv : pip install python-docx"
+        ) from exc
+
+    table = Document(str(docx_path)).tables[0]
+    return [[_read_cell(cell) for cell in row.cells] for row in table.rows]
+
+
 def _pairs_from_grid(grid: list[list[str]]) -> list[tuple[str, str]]:
     pairs: list[tuple[str, str]] = []
     for cells in grid:
@@ -198,11 +248,19 @@ def load_dossier() -> str:
 
 
 def load_rows() -> list[list[str]]:
-    """Toutes les cellules du tableau Word."""
+    """Toutes les cellules du tableau Word (texte seul)."""
     path = _resolve_path()
     if path.suffix.lower() != ".docx":
         return []
     return _table_grid(path)
+
+
+def load_cells() -> list[list[dict[str, Any]]]:
+    """Cellules du Word avec fond, gras et taille de police."""
+    path = _resolve_path()
+    if path.suffix.lower() != ".docx":
+        return []
+    return _table_cells(path)
 
 
 def dossier_source() -> tuple[str, datetime | None]:
@@ -221,8 +279,67 @@ def _docx_write_path() -> Path:
     return DEFAULT_DOCX
 
 
-def _set_cell_text(cell, text: str) -> None:
-    cell.text = text
+def _set_cell_fill(cell, fill: str | None) -> None:
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+
+    tc_pr = cell._tc.get_or_add_tcPr()
+    shade = tc_pr.find(qn("w:shd"))
+    if not fill:
+        if shade is not None:
+            tc_pr.remove(shade)
+        return
+    if shade is None:
+        shade = OxmlElement("w:shd")
+        tc_pr.append(shade)
+    shade.set(qn("w:val"), "clear")
+    shade.set(qn("w:color"), "auto")
+    shade.set(qn("w:fill"), fill)
+
+
+def _style_run(run, *, bold: bool, italic: bool, font_size: float | None) -> None:
+    from docx.shared import Pt
+
+    run.bold = bold or None
+    run.italic = italic or None
+    run.font.size = Pt(font_size) if font_size else None
+
+
+def _write_cell(cell, data: dict[str, Any]) -> None:
+    text = data.get("text") or ""
+    lines = text.split("\n")
+    cell.text = lines[0] if lines else ""
+    first = cell.paragraphs[0]
+    if not first.runs:
+        first.add_run(first.text)
+    for run in first.runs:
+        _style_run(
+            run,
+            bold=bool(data.get("bold")),
+            italic=bool(data.get("italic")),
+            font_size=data.get("font_size"),
+        )
+    for line in lines[1:]:
+        paragraph = cell.add_paragraph(line)
+        for run in paragraph.runs:
+            _style_run(run, bold=False, italic=False, font_size=None)
+    _set_cell_fill(cell, data.get("fill"))
+
+
+def _empty_cell() -> dict[str, Any]:
+    return {"text": "", "fill": None, "bold": False, "italic": False, "font_size": None}
+
+
+def _as_cell(value: str | dict[str, Any]) -> dict[str, Any]:
+    if isinstance(value, str):
+        return {**_empty_cell(), "text": value}
+    return {
+        "text": (value.get("text") or "").strip(),
+        "fill": value.get("fill"),
+        "bold": bool(value.get("bold")),
+        "italic": bool(value.get("italic")),
+        "font_size": value.get("font_size"),
+    }
 
 
 def _resize_table(table, needed: int) -> None:
@@ -234,29 +351,29 @@ def _resize_table(table, needed: int) -> None:
         tbl.remove(table.rows[-1]._tr)
 
 
-def _normalize_grid(rows: list[list[str]]) -> list[list[str]]:
-    cleaned: list[list[str]] = []
+def _normalize_cells(rows: list[list[str | dict[str, Any]]]) -> list[list[dict[str, Any]]]:
+    cleaned: list[list[dict[str, Any]]] = []
     for row in rows:
-        cells = [cell.strip() for cell in row]
-        if any(cells):
+        cells = [_as_cell(cell) for cell in row]
+        if any(cell["text"] for cell in cells):
             cleaned.append(cells)
     ncols = max((len(row) for row in cleaned), default=2)
     ncols = max(ncols, 1)
     if not cleaned:
-        return [[""] * ncols]
-    return [row + [""] * (ncols - len(row)) for row in cleaned]
+        return [[_empty_cell() for _ in range(ncols)]]
+    return [row + [_empty_cell() for _ in range(ncols - len(row))] for row in cleaned]
 
 
-def _fill_table(table, grid: list[list[str]]) -> None:
+def _fill_table(table, grid: list[list[dict[str, Any]]]) -> None:
     _resize_table(table, len(grid))
     for index, cells in enumerate(grid):
         row_cells = table.rows[index].cells
-        for col, text in enumerate(cells):
+        for col, data in enumerate(cells):
             if col < len(row_cells):
-                _set_cell_text(row_cells[col], text)
+                _write_cell(row_cells[col], data)
 
 
-def _rebuild_first_table(doc, grid: list[list[str]]) -> None:
+def _rebuild_first_table(doc, grid: list[list[dict[str, Any]]]) -> None:
     nrows = max(len(grid), 1)
     ncols = max(len(grid[0]) if grid else 0, 1)
     new_table = doc.add_table(rows=nrows, cols=ncols)
@@ -264,18 +381,18 @@ def _rebuild_first_table(doc, grid: list[list[str]]) -> None:
         new_table.style = "Table Grid"
     except ValueError:
         pass
-    padded = grid or [[""] * ncols]
+    padded = grid or [[_empty_cell() for _ in range(ncols)]]
     for index, cells in enumerate(padded):
-        for col, text in enumerate(cells):
-            _set_cell_text(new_table.cell(index, col), text)
+        for col, data in enumerate(cells):
+            _write_cell(new_table.cell(index, col), data)
     if len(doc.tables) >= 2:
         old = doc.tables[0]
         old._tbl.addnext(new_table._tbl)
         old._tbl.getparent().remove(old._tbl)
 
 
-def save_rows(rows: list[list[str]]) -> None:
-    """Écrit le tableau dans le Word (nombre de colonnes et de lignes variable)."""
+def save_cells(rows: list[list[str | dict[str, Any]]]) -> None:
+    """Écrit le tableau Word en conservant fond et police des titres."""
     try:
         from docx import Document
     except ImportError as exc:
@@ -284,7 +401,7 @@ def save_rows(rows: list[list[str]]) -> None:
             "Installe-le dans le venv : pip install python-docx"
         ) from exc
 
-    grid = _normalize_grid(rows)
+    grid = _normalize_cells(rows)
     path = _docx_write_path()
     path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -305,3 +422,7 @@ def save_rows(rows: list[list[str]]) -> None:
 
     doc.save(str(path))
     _compact_from_docx_cached.cache_clear()
+
+
+def save_rows(rows: list[list[str]]) -> None:
+    save_cells(rows)

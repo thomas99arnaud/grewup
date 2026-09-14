@@ -31,6 +31,25 @@ APPLICATION_JSON_SCHEMA: dict[str, Any] = {
     ],
 }
 
+LETTER_JSON_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "job_title": {"type": "string"},
+        "company": {"type": "string"},
+        "language": {"type": "string"},
+        "fit_summary": {"type": "string"},
+        "cover_letter": {"type": "string"},
+    },
+    "required": [
+        "job_title",
+        "company",
+        "language",
+        "fit_summary",
+        "cover_letter",
+    ],
+}
+
 
 class LlmError(Exception):
     pass
@@ -88,7 +107,13 @@ def parse_llm_json(raw: str) -> dict[str, Any]:
     return data
 
 
-async def chat_json(system: str, user: str) -> dict[str, Any]:
+async def chat_json(
+    system: str,
+    user: str,
+    *,
+    schema: dict[str, Any] | None = None,
+    require_cv: bool = True,
+) -> dict[str, Any]:
     if not settings.openai_api_key:
         raise LlmError(
             "Clé API manquante. Ajoute OPENAI_API_KEY (ou OPENROUTER_API_KEY) dans .env "
@@ -110,12 +135,13 @@ async def chat_json(system: str, user: str) -> dict[str, Any]:
             },
             {"role": "user", "content": user},
         ]
+        used_schema = schema or APPLICATION_JSON_SCHEMA
         response_format: dict[str, Any] = {
             "type": "json_schema",
             "json_schema": {
-                "name": "generated_application",
+                "name": "generated_application" if require_cv else "generated_letter",
                 "strict": True,
-                "schema": APPLICATION_JSON_SCHEMA,
+                "schema": used_schema,
             },
         }
     else:
@@ -174,6 +200,10 @@ async def chat_json(system: str, user: str) -> dict[str, Any]:
             f"Réponse LLM illisible (JSON attendu). Aperçu : {preview or '(vide)'}"
         ) from exc
 
-    if not str(parsed.get("cv_markdown") or "").strip() or not str(parsed.get("cover_letter") or "").strip():
+    letter = str(parsed.get("cover_letter") or "").strip()
+    cv = str(parsed.get("cv_markdown") or "").strip()
+    if require_cv and (not cv or not letter):
         raise LlmError("Le modèle n'a pas renvoyé de CV et de lettre complets.")
+    if not require_cv and not letter:
+        raise LlmError("Le modèle n'a pas renvoyé de lettre complète.")
     return parsed

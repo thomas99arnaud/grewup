@@ -430,6 +430,12 @@ h2 {
 .status-running { background: #dbeafe; color: #1d4ed8; }
 .status-done { background: #d1fae5; color: #047857; }
 .status-failed { background: #fee2e2; color: #b91c1c; }
+.status-draft { background: #e5e7eb; color: #374151; }
+.status-applied { background: #dbeafe; color: #1d4ed8; }
+.status-interview { background: #ede9fe; color: #6d28d9; }
+.status-rejected { background: #fee2e2; color: #b91c1c; }
+.status-hired { background: #d1fae5; color: #047857; }
+.tag.reused { margin-left: 0.4rem; background: #fef3c7; color: #b45309; text-transform: none; }
 
 /* Lists */
 .offer-list,
@@ -1152,6 +1158,20 @@ h2 {
   background: #fffbe6;
 }
 
+.dossier-grid td.word-filled textarea:focus {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.dossier-grid textarea.word-title-text {
+  font-size: 11pt;
+  font-weight: 700;
+}
+
+.dossier-grid textarea.word-title-text::first-line {
+  font-size: 14pt;
+  font-weight: 700;
+}
+
 .dossier-grid .word-row-tool {
   width: 1.6rem;
   border: none;
@@ -1229,6 +1249,21 @@ h2 {
 .generate-page .subtitle {
   color: var(--muted);
   margin: 0.5rem 0 1.5rem;
+}
+
+.reuse-banner {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  margin: 0.5rem 0 0.75rem;
+}
+
+.btn.ghost.active-status {
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .generate-results {

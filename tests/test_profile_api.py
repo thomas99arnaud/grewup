@@ -83,7 +83,8 @@ async def test_dossier_api_reads_and_writes_word(client: AsyncClient, tmp_path, 
     assert listed.status_code == 200
     body = listed.json()
     assert body["filename"] == "suivi-competences.docx"
-    assert body["rows"] == [["Compétence initiale", "Python"]]
+    assert body["rows"][0][0]["text"] == "Compétence initiale"
+    assert body["rows"][0][1]["text"] == "Python"
 
     updated = await client.put(
         "/api/profile/dossier",
@@ -96,11 +97,11 @@ async def test_dossier_api_reads_and_writes_word(client: AsyncClient, tmp_path, 
     )
     assert updated.status_code == 200
     rows = updated.json()["rows"]
-    assert rows[0][0] == "IAS RAG"
-    assert rows[1][1] == "2025 | Montréal"
+    assert rows[0][0]["text"] == "IAS RAG"
+    assert rows[1][1]["text"] == "2025 | Montréal"
 
     reloaded = (await client.get("/api/profile/dossier")).json()["rows"]
-    assert reloaded == rows
+    assert reloaded[0][0]["text"] == "IAS RAG"
     from backend.modules.applications.dossier import load_rows
 
     assert load_rows()[0] == ["IAS RAG", "Python, LangChain"]

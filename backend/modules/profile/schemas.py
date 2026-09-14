@@ -1,6 +1,7 @@
 from datetime import date, datetime
+from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from backend.modules.profile.models import LanguageLevel, SkillLevel
 
@@ -149,11 +150,45 @@ class ProfileResponse(ProfileBase):
     model_config = {"from_attributes": True}
 
 
+class DossierCell(BaseModel):
+    text: str = ""
+    fill: str | None = None
+    bold: bool = False
+    italic: bool = False
+    font_size: float | None = None
+
+    @field_validator("fill", mode="before")
+    @classmethod
+    def _empty_fill(cls, value: Any) -> str | None:
+        if value in ("", "auto"):
+            return None
+        return value
+
+
 class DossierUpdate(BaseModel):
-    rows: list[list[str]]
+    rows: list[list[DossierCell]]
+
+    @field_validator("rows", mode="before")
+    @classmethod
+    def _coerce_rows(cls, value: Any) -> Any:
+        if not isinstance(value, list):
+            return value
+        coerced = []
+        for row in value:
+            if not isinstance(row, list):
+                coerced.append(row)
+                continue
+            cells = []
+            for cell in row:
+                if isinstance(cell, str):
+                    cells.append({"text": cell})
+                else:
+                    cells.append(cell)
+            coerced.append(cells)
+        return coerced
 
 
 class DossierResponse(BaseModel):
-    rows: list[list[str]] = Field(default_factory=list)
+    rows: list[list[DossierCell]] = Field(default_factory=list)
     filename: str
     updated_at: datetime | None = None

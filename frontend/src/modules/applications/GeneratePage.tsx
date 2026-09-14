@@ -1,53 +1,38 @@
 import { FormEvent, useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { api, GeneratedApplication } from "../../shared/api";
+import { downloadPdf, PdfFrame } from "./pdf";
 
-function downloadPdf(base64: string, filename: string) {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-  const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
-}
-
-function PdfFrame({ base64 }: { base64: string }) {
-  const [url, setUrl] = useState<string | null>(null);
-  useEffect(() => {
-    const binary = atob(base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-    const objectUrl = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
-    setUrl(objectUrl);
-    return () => URL.revokeObjectURL(objectUrl);
-  }, [base64]);
-  if (!url) return null;
-  return <iframe className="pdf-frame" title="Aperçu PDF" src={url} />;
-}
+type ApplyState = {
+  offerText?: string;
+  offerId?: string;
+};
 
 export function GeneratePage() {
   const location = useLocation();
-  const fromOffer =
-    location.state && typeof location.state === "object" && "offerText" in location.state
-      ? String((location.state as { offerText?: string }).offerText || "")
-      : "";
-  const [offerText, setOfferText] = useState(fromOffer);
+  const fromState =
+    location.state && typeof location.state === "object" ? (location.state as ApplyState) : {};
+  const [offerText, setOfferText] = useState(fromState.offerText || "");
+  const [offerId, setOfferId] = useState(fromState.offerId || "");
   const [language, setLanguage] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<GeneratedApplication | null>(null);
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  useEffect(() => {
+    if (fromState.offerText) setOfferText(fromState.offerText);
+    if (fromState.offerId) setOfferId(fromState.offerId);
+  }, [fromState.offerText, fromState.offerId]);
+
+  const generate = async (force: boolean) => {
     setLoading(true);
     setError(null);
     try {
       const data = await api.generateApplication({
         offer_text: offerText,
+        offer_id: offerId || null,
         language: language || null,
+        force,
       });
       setResult(data);
     } catch (err) {
@@ -57,12 +42,17 @@ export function GeneratePage() {
     }
   };
 
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    await generate(false);
+  };
+
   return (
     <div className="page generate-page">
       <h1>CV et lettre</h1>
       <p className="subtitle">
-        Colle une offre. L&apos;IA s&apos;appuie sur le suivi de compétences du Répertoire
-        (le même fichier Word), choisit les expériences utiles, puis exporte deux PDF.
+        Colle une offre. L&apos;IA sélectionne les expériences, réutilise un CV déjà produit
+        s&apos;il collerait au même profil, et écrit toujours une nouvelle lettre.
       </p>
 
       <div className="card">
@@ -99,16 +89,20 @@ export function GeneratePage() {
               {result.job_title}
               {result.company ? ` — ${result.company}` : ""}
             </h2>
-            <p className="hint">{result.fit_summary}</p>
-            {result.emphasized_experiences.length > 0 && (
-              <p className="hint">
-                Gardé : {result.emphasized_experiences.join(" · ")}
+            {result.reused && (
+              <p className="reuse-banner">
+                CV réutilisé
+                {result.reused_from_title ? ` depuis ${result.reused_from_title}` : ""}
+                {result.reused_from_company ? ` — ${result.reused_from_company}` : ""}.
+                Nouvelle lettre uniquement.
               </p>
             )}
+            <p className="hint">{result.fit_summary}</p>
+            {result.emphasized_experiences.length > 0 && (
+              <p className="hint">Gardé : {result.emphasized_experiences.join(" · ")}</p>
+            )}
             {(result.omitted_experiences?.length ?? 0) > 0 && (
-              <p className="hint">
-                Omise : {result.omitted_experiences.join(" · ")}
-              </p>
+              <p className="hint">Omise : {result.omitted_experiences.join(" · ")}</p>
             )}
             <div className="pdf-actions">
               <button
@@ -125,6 +119,21 @@ export function GeneratePage() {
               >
                 Télécharger la lettre (PDF)
               </button>
+              {result.application_id && (
+                <Link className="btn ghost" to={`/applications/${result.application_id}`}>
+                  Voir la candidature
+                </Link>
+              )}
+              {result.reused && (
+                <button
+                  type="button"
+                  className="btn ghost"
+                  disabled={loading}
+                  onClick={() => generate(true)}
+                >
+                  Régénérer le CV
+                </button>
+              )}
             </div>
           </section>
 

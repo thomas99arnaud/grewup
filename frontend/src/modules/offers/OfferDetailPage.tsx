@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { api, Offer, OfferStatus } from "../../shared/api";
+import { api, ApplicationListItem, Offer, OfferStatus } from "../../shared/api";
 
 export function OfferDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -8,6 +8,7 @@ export function OfferDetailPage() {
   const [offer, setOffer] = useState<Offer | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
+  const [applications, setApplications] = useState<ApplicationListItem[]>([]);
 
   useEffect(() => {
     if (!id) return;
@@ -17,6 +18,10 @@ export function OfferDetailPage() {
         setNotes(o.notes || "");
       })
       .catch((e) => setError(e.message));
+    api
+      .listApplications(new URLSearchParams({ offer_id: id, page_size: "20" }))
+      .then((data) => setApplications(data.items))
+      .catch(() => setApplications([]));
   }, [id]);
 
   const saveNotes = async () => {
@@ -65,6 +70,7 @@ export function OfferDetailPage() {
             className="btn ghost"
             to="/apply"
             state={{
+              offerId: offer.id,
               offerText: [offer.title, offer.company, offer.description_raw]
                 .filter(Boolean)
                 .join("\n\n"),
@@ -84,6 +90,23 @@ export function OfferDetailPage() {
       <section className="card">
         <h2>Description</h2>
         <pre className="description">{offer.description_raw || "Pas de description"}</pre>
+      </section>
+
+      <section className="card">
+        <h2>Candidatures</h2>
+        {applications.length === 0 ? (
+          <p className="hint">Pas encore de CV généré pour cette offre.</p>
+        ) : (
+          <ul className="offer-list">
+            {applications.map((app) => (
+              <li key={app.id}>
+                <Link to={`/applications/${app.id}`}>
+                  {app.job_title || "CV"} — {new Date(app.created_at).toLocaleDateString("fr-FR")}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="card">

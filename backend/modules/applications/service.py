@@ -1,6 +1,8 @@
 from backend.modules.applications import llm
 from backend.modules.applications.dossier import load_dossier
+from backend.modules.applications.llm import LETTER_JSON_SCHEMA
 from backend.modules.applications.pdfs import render_application_pdfs
+from backend.modules.applications.signature import adapt_cv
 from backend.modules.profile.models import CandidateProfile
 
 SYSTEM_PROMPT = """Tu rédiges un CV et une lettre de motivation pour Thomas Arnaud.
@@ -159,6 +161,61 @@ Réponds UNIQUEMENT en JSON :
 }
 """
 
+LETTER_ONLY_PROMPT = """Tu rédiges UNIQUEMENT une lettre de motivation pour Thomas Arnaud. Ne rédige PAS de CV : il est déjà fixé (fourni plus bas).
+
+Source unique : le dossier candidat. N'invente aucun fait, date, outil, chiffre, client, diplôme ou compétence.
+
+Règles :
+- Ne jamais citer de nom de code interne d'outil industriel. Toujours « outil de configuration industrielle ».
+- CDI IAS : début officiel janvier 2026.
+- Ne pas affirmer un travail quotidien en anglais au MTQ.
+- Ne pas mentionner les jobs étudiants.
+- Ne cite dans la lettre que les expériences présentes dans le CV fourni.
+
+LETTRE — priorité absolue : qu'elle ait l'air écrite par Thomas, pas par un modèle.
+
+Voix : première personne, phrases de longueurs inégales, un détail vécu. On parle comme à un recruteur qu'on respecte, sans jargon RH. Le CV vend les outils ; la lettre vend la personne et l'envie.
+
+Qualités humaines (via une SCÈNE, jamais un adjectif nu) :
+- Terrain avec des non-dev : métiers, analystes transport, utilisateurs du RAG.
+- Transmission : encadrement d'un alternant, formation des utilisateurs MTQ, soutien maths.
+- Collectif : foot et hand en club, asso (BDE/BDS, événements).
+- Autonomie : seul profil développement dans l'équipe transport au MTQ.
+- Envie vraie : outils dont les gens se servent ; si l'offre est ailleurs / internationale, attirance pour ce contexte — jamais « je m'ennuie » ni critique d'IAS.
+
+Interdit :
+« Votre offre a retenu mon attention », « c'est avec un vif intérêt », « je me permets de », « fort de mon expérience », « je suis convaincu d'être un atout », « dynamique / passionné / motivé / rigoureux » sans scène, « n'hésitez pas », « je reste dans l'attente », liste de techno, recopier le CV.
+
+Mobilité / préavis (~3 mois) : seulement si l'offre est ailleurs, VIE, Canada, ou clairement plus ouverte.
+
+Enveloppe formelle ; le corps doit être vivant :
+
+Thomas ARNAUD
+{lieu}, le {date du jour si tu la connais, sinon omettre}
+
+À l'attention de {entreprise ou du service recrutement}
+Objet : Candidature pour le poste de {intitulé}
+
+Madame, Monsieur,
+
+Paragraphe 1 — l'envie : pourquoi CETTE mission te parle. 3–5 phrases.
+Paragraphe 2 — une scène humaine calée sur le CV fourni. 1 preuve technique max.
+Paragraphe 3 — ce que tu veux construire là, ouverture à un échange.
+
+Formule de politesse classique, puis Thomas ARNAUD.
+
+Texte brut, 3 paragraphes, ~180–280 mots. Pas de markdown. Langue = celle de l'offre.
+
+Réponds UNIQUEMENT en JSON :
+{
+  "job_title": "intitulé adapté à CETTE offre",
+  "company": "entreprise si identifiable, sinon chaîne vide",
+  "language": "fr ou en",
+  "fit_summary": "Pourquoi le CV existant colle, et ce que la lettre met en avant (2 phrases)",
+  "cover_letter": "lettre complète"
+}
+"""
+
 
 async def generate_application(
     offer_text: str,
@@ -190,6 +247,43 @@ async def generate_application(
         "fit_summary": str(data.get("fit_summary") or ""),
         "emphasized_experiences": list(data.get("emphasized_experiences") or []),
         "omitted_experiences": list(data.get("omitted_experiences") or []),
+        "cv_markdown": cv_text,
+        "cover_letter": letter_text,
+        **pdfs,
+    }
+
+
+async def generate_letter_only(
+    offer_text: str,
+    reused_cv: str,
+    language: str | None = None,
+) -> dict:
+    dossier = load_dossier()
+    lang_hint = language or "détecte depuis l'offre"
+    system = LETTER_ONLY_PROMPT + "\n\n=== DOSSIER CANDIDAT (source de vérité) ===\n" + dossier
+    user = (
+        f"Langue cible : {lang_hint}\n\n"
+        "Ne rédige PAS de CV. Adapte seulement l'intitulé (job_title) à cette offre, "
+        "puis écris une lettre HUMAINE.\n\n"
+        f"=== CV DÉJÀ RÉDIGÉ (à ne pas réécrire) ===\n{reused_cv.strip()}\n\n"
+        f"=== OFFRE ===\n{offer_text.strip()}\n"
+    )
+    data = await llm.chat_json(
+        system,
+        user,
+        schema=LETTER_JSON_SCHEMA,
+        require_cv=False,
+    )
+    job_title = str(data.get("job_title") or "")
+    company = str(data.get("company") or "")
+    cv_text = adapt_cv(reused_cv, job_title, offer_text)
+    letter_text = str(data.get("cover_letter") or "")
+    pdfs = render_application_pdfs(cv_text, letter_text, job_title, company)
+    return {
+        "job_title": job_title,
+        "company": company,
+        "language": str(data.get("language") or language or "fr"),
+        "fit_summary": str(data.get("fit_summary") or ""),
         "cv_markdown": cv_text,
         "cover_letter": letter_text,
         **pdfs,

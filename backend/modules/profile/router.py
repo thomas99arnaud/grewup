@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.module import BaseModule
 from backend.db.session import get_session
-from backend.modules.applications.dossier import dossier_source, load_rows, save_rows
+from backend.modules.applications.dossier import dossier_source, load_cells, save_cells
 from backend.modules.profile.schemas import (
     DossierResponse,
     DossierUpdate,
@@ -174,7 +174,7 @@ async def delete_education(
 
 def _dossier_response() -> DossierResponse:
     filename, updated_at = dossier_source()
-    return DossierResponse(rows=load_rows(), filename=filename, updated_at=updated_at)
+    return DossierResponse(rows=load_cells(), filename=filename, updated_at=updated_at)
 
 
 @router.get("/profile/dossier", response_model=DossierResponse)
@@ -190,7 +190,7 @@ async def get_dossier() -> DossierResponse:
 @router.put("/profile/dossier", response_model=DossierResponse)
 async def update_dossier(data: DossierUpdate) -> DossierResponse:
     try:
-        save_rows(data.rows)
+        save_cells(data.model_dump()["rows"])
         return _dossier_response()
     except PermissionError as exc:
         raise HTTPException(
